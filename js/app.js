@@ -108,4 +108,12 @@ document.addEventListener("DOMContentLoaded", () => {
   DevnexUI.bindShell();
   DevnexAuth.initLogin();
   DevnexAuth.guard();
+  registerServiceWorker();
 });
+
+function registerServiceWorker() {
+  if (!("serviceWorker" in navigator) || !window.isSecureContext) return;
+  navigator.serviceWorker.register("./sw.js").catch((error) => {
+    console.warn("DevNex PWA: no se pudo registrar el service worker.", error);
+  });
+}
