@@ -42,7 +42,7 @@ window.DevnexApp = {
     settings: "devnex.settings"
   },
   defaults: {
-    whatsapp: "573001112233",
+    whatsapp: "573246394689",
     projects: [
       {
         project_id: "AREPAS-DOG-BURGER.COM",
