@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96" role="img" aria-label="Devnex">
+  <defs>
+    <linearGradient id="g" x1="16" y1="10" x2="82" y2="86" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#c084fc"/>
+      <stop offset=".46" stop-color="#9333ea"/>
+      <stop offset="1" stop-color="#7c3aed"/>
+    </linearGradient>
+  </defs>
+  <rect width="96" height="96" rx="18" fill="#0a0a0f"/>
+  <path d="M54 8 20 55h24l-7 33 39-52H51L54 8Z" fill="url(#g)"/>
+</svg>

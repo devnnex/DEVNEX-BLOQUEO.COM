@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0a0a0f">
+  <title>Devnex Control</title>
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/dashboard.css">
+  <link rel="stylesheet" href="css/animations.css">
+  <link rel="stylesheet" href="css/responsive.css">
+</head>
+<body data-page="dashboard">
+  <section class="login-view" id="loginView" aria-label="Login" hidden>
+    <canvas class="particle-canvas" id="particleCanvas" aria-hidden="true"></canvas>
+    <main class="login-layout">
+      <section class="login-card glass-panel">
+        <a class="brand login-brand" href="#login">
+          <span class="brand-mark"><i class="fa-solid fa-bolt"></i></span>
+          <span class="brand-copy">
+            <strong>Devnex</strong>
+            <small>Control OS</small>
+          </span>
+        </a>
+        <div class="login-copy">
+          <p class="eyebrow">Secure SaaS Console</p>
+          <h1>Entra al centro de mando.</h1>
+          <p>Gestiona bloqueos, cobros y estado operativo de tus proyectos conectados por project_id.</p>
+        </div>
+        <form class="premium-form" id="loginForm">
+          <label>
+            <span>Usuario</span>
+            <i class="fa-solid fa-user"></i>
+            <input type="text" name="user" autocomplete="username" placeholder="admin" required>
+          </label>
+          <label>
+            <span>Clave</span>
+            <i class="fa-solid fa-fingerprint"></i>
+            <input type="password" name="password" autocomplete="current-password" placeholder="••••••••" required>
+          </label>
+          <button class="button primary wide" type="submit">
+            <i class="fa-solid fa-arrow-right-to-bracket"></i>
+            Iniciar sesion
+          </button>
+        </form>
+        <div class="login-meta">
+          <span><i class="fa-solid fa-shield-halved"></i> Local secure session</span>
+          <span><i class="fa-solid fa-wand-magic-sparkles"></i> API ready</span>
+        </div>
+      </section>
+      <aside class="login-orbital">
+        <div class="planet"></div>
+        <div class="ring ring-one"></div>
+        <div class="ring ring-two"></div>
+        <div class="signal-card glass-panel">
+          <span class="pulse-dot"></span>
+          <strong>99.98%</strong>
+          <small>Operational uptime</small>
+        </div>
+      </aside>
+    </main>
+  </section>
+
+  <div class="app-shell" id="appShell" hidden>
+    <aside class="sidebar glass-panel" id="sidebar">
+      <a class="brand" href="#dashboard" aria-label="Devnex Control">
+        <span class="brand-mark"><i class="fa-solid fa-bolt"></i></span>
+        <span class="brand-copy">
+          <strong>Devnex</strong>
+          <small>Control OS</small>
+        </span>
+      </a>
+      <nav class="side-nav" aria-label="Navegacion principal">
+        <a class="nav-link active" href="#dashboard" data-view-link="dashboard"><i class="fa-solid fa-chart-pie"></i><span>Dashboard</span></a>
+        <a class="nav-link" href="#projects" data-view-link="projects"><i class="fa-solid fa-layer-group"></i><span>Proyectos</span></a>
+        <a class="nav-link" href="#settings" data-view-link="settings"><i class="fa-solid fa-sliders"></i><span>Settings</span></a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="mini-status">
+          <span class="pulse-dot"></span>
+          <span>Project ID Sync</span>
+        </div>
+        <button class="icon-button" id="collapseSidebar" type="button" aria-label="Contraer menu" data-tooltip="Contraer">
+          <i class="fa-solid fa-chevron-left"></i>
+        </button>
+      </div>
+    </aside>
+
+    <main class="main-panel">
+      <section class="app-view active" data-view="dashboard">
+        <header class="topbar glass-panel">
+          <button class="icon-button mobile-menu" id="mobileMenu" type="button" aria-label="Abrir menu">
+            <i class="fa-solid fa-bars"></i>
+          </button>
+          <div>
+            <p class="eyebrow">Command Center</p>
+            <h1>Administracion de proyectos</h1>
+          </div>
+          <div class="topbar-actions">
+            <div class="search-shell">
+              <i class="fa-solid fa-magnifying-glass"></i>
+              <input id="globalSearch" type="search" placeholder="Buscar proyecto">
+            </div>
+            <button class="icon-button" id="refreshData" type="button" aria-label="Actualizar" data-tooltip="Actualizar">
+              <i class="fa-solid fa-rotate"></i>
+            </button>
+            <button class="avatar-button logout-button" type="button" aria-label="Cerrar sesion">
+              <span>DX</span>
+            </button>
+          </div>
+        </header>
+
+        <section class="hero-strip">
+          <div class="hero-copy">
+            <p class="eyebrow">Apps Script API</p>
+            <h2>Controla bloqueos, deuda y mensajes de cada sistema desplegado.</h2>
+          </div>
+          <div class="hero-metric">
+            <span id="currentProjectId">Proyecto actual</span>
+            <strong id="currentProjectStatus">Detectando</strong>
+          </div>
+        </section>
+
+        <section class="stats-grid" id="statsGrid" aria-label="Estadisticas">
+          <article class="stat-card glass-panel skeleton-box">
+            <span class="stat-icon violet"><i class="fa-solid fa-diagram-project"></i></span>
+            <p>Total proyectos</p>
+            <strong id="statTotal">0</strong>
+            <small>Inventario conectado</small>
+          </article>
+          <article class="stat-card glass-panel skeleton-box">
+            <span class="stat-icon rose"><i class="fa-solid fa-lock"></i></span>
+            <p>Bloqueados</p>
+            <strong id="statBlocked">0</strong>
+            <small>Accion requerida</small>
+          </article>
+          <article class="stat-card glass-panel skeleton-box">
+            <span class="stat-icon emerald"><i class="fa-solid fa-unlock"></i></span>
+            <p>Activos</p>
+            <strong id="statActive">0</strong>
+            <small>Operando normal</small>
+          </article>
+          <article class="stat-card glass-panel skeleton-box">
+            <span class="stat-icon amber"><i class="fa-solid fa-coins"></i></span>
+            <p>Deuda total</p>
+            <strong id="statAmount">$0</strong>
+            <small>COP pendiente</small>
+          </article>
+        </section>
+
+        <section class="dashboard-grid">
+          <article class="panel glass-panel chart-panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Status</p>
+                <h3>Salud de proyectos</h3>
+              </div>
+              <span class="panel-badge">Live</span>
+            </div>
+            <canvas id="statusChart" height="260" aria-label="Grafica de estados"></canvas>
+          </article>
+
+          <article class="panel glass-panel chart-panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Revenue Risk</p>
+                <h3>Deuda por proyecto</h3>
+              </div>
+              <span class="panel-badge soft">COP</span>
+            </div>
+            <canvas id="amountChart" height="260" aria-label="Grafica de deuda"></canvas>
+          </article>
+        </section>
+
+        <section class="panel glass-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Actividad</p>
+              <h3>Proyectos recientes</h3>
+            </div>
+            <a class="button ghost" href="#projects" data-view-link="projects">Ver todos <i class="fa-solid fa-arrow-right"></i></a>
+          </div>
+          <div class="activity-list" id="activityList"></div>
+        </section>
+      </section>
+
+      <section class="app-view" data-view="projects">
+        <header class="topbar glass-panel">
+          <button class="icon-button mobile-menu" type="button" aria-label="Abrir menu" data-mobile-menu>
+            <i class="fa-solid fa-bars"></i>
+          </button>
+          <div>
+            <p class="eyebrow">Projects</p>
+            <h1>Sistemas conectados</h1>
+          </div>
+          <div class="topbar-actions">
+            <button class="button ghost" type="button" data-refresh><i class="fa-solid fa-rotate"></i> Sync</button>
+            <button class="button primary" id="newProjectButton" type="button"><i class="fa-solid fa-plus"></i> Nuevo</button>
+            <button class="avatar-button logout-button" type="button" aria-label="Cerrar sesion"><span>DX</span></button>
+          </div>
+        </header>
+
+        <section class="panel glass-panel table-panel">
+          <div class="table-toolbar">
+            <div class="search-shell grow">
+              <i class="fa-solid fa-magnifying-glass"></i>
+              <input id="projectSearch" type="search" placeholder="Buscar por ID, estado o mensaje">
+            </div>
+            <div class="segmented-control" id="statusFilter" role="tablist" aria-label="Filtrar proyectos">
+              <button class="active" type="button" data-filter="all">Todos</button>
+              <button type="button" data-filter="active">Activos</button>
+              <button type="button" data-filter="blocked">Bloqueados</button>
+            </div>
+          </div>
+
+          <div class="table-wrap">
+            <table class="premium-table">
+              <thead>
+                <tr>
+                  <th>project_id</th>
+                  <th>status</th>
+                  <th>amount</th>
+                  <th>message</th>
+                  <th class="right">acciones</th>
+                </tr>
+              </thead>
+              <tbody id="projectsTableBody">
+                <tr class="skeleton-row"><td colspan="5"></td></tr>
+                <tr class="skeleton-row"><td colspan="5"></td></tr>
+                <tr class="skeleton-row"><td colspan="5"></td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="pagination-bar">
+            <span id="paginationInfo">0 proyectos</span>
+            <div>
+              <button class="icon-button" id="prevPage" type="button" aria-label="Anterior"><i class="fa-solid fa-chevron-left"></i></button>
+              <button class="icon-button" id="nextPage" type="button" aria-label="Siguiente"><i class="fa-solid fa-chevron-right"></i></button>
+            </div>
+          </div>
+        </section>
+      </section>
+
+      <section class="app-view" data-view="settings">
+        <header class="topbar glass-panel">
+          <button class="icon-button mobile-menu" type="button" aria-label="Abrir menu" data-mobile-menu>
+            <i class="fa-solid fa-bars"></i>
+          </button>
+          <div>
+            <p class="eyebrow">Settings</p>
+            <h1>Apariencia y cuenta</h1>
+          </div>
+          <div class="topbar-actions">
+            <button class="avatar-button logout-button" type="button" aria-label="Cerrar sesion"><span>DX</span></button>
+          </div>
+        </header>
+
+        <section class="settings-grid">
+          <article class="panel glass-panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Apariencia</p>
+                <h3>Interfaz</h3>
+              </div>
+              <span class="panel-badge">Premium</span>
+            </div>
+            <div class="setting-row">
+              <div>
+                <strong>Dark mode</strong>
+                <span>Consola oscura galactica</span>
+              </div>
+              <label class="switch">
+                <input id="darkModeToggle" type="checkbox" checked>
+                <span></span>
+              </label>
+            </div>
+            <div class="setting-row">
+              <div>
+                <strong>Glass intensity</strong>
+                <span>Profundidad visual</span>
+              </div>
+              <input class="range" id="glassRange" type="range" min="10" max="34" value="22">
+            </div>
+          </article>
+
+          <article class="panel glass-panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Branding</p>
+                <h3>Identidad</h3>
+              </div>
+            </div>
+            <form class="premium-form compact" id="settingsForm">
+              <label>
+                <span>Marca</span>
+                <i class="fa-solid fa-signature"></i>
+                <input id="brandName" type="text" value="Devnex Control">
+              </label>
+              <label>
+                <span>WhatsApp soporte</span>
+                <i class="fa-brands fa-whatsapp"></i>
+                <input id="whatsappNumber" type="tel" placeholder="573001112233">
+              </label>
+              <button class="button primary" type="submit"><i class="fa-solid fa-check"></i> Guardar</button>
+            </form>
+          </article>
+
+          <article class="panel glass-panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Usuario</p>
+                <h3>Sesion</h3>
+              </div>
+            </div>
+            <div class="profile-card">
+              <div class="profile-avatar">DX</div>
+              <div>
+                <strong id="settingsUser">Administrador</strong>
+                <span>Owner console</span>
+              </div>
+            </div>
+            <button class="button ghost" id="clearLocalData" type="button"><i class="fa-solid fa-broom"></i> Limpiar demo local</button>
+          </article>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <dialog class="project-dialog glass-panel" id="projectDialog">
+    <form class="premium-form" id="projectForm" method="dialog">
+      <div class="dialog-heading">
+        <div>
+          <p class="eyebrow" id="dialogMode">Nuevo proyecto</p>
+          <h2>Registro operativo</h2>
+        </div>
+        <button class="icon-button" type="button" id="closeDialog" aria-label="Cerrar"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <label>
+        <span>project_id</span>
+        <i class="fa-solid fa-code-branch"></i>
+        <input id="projectIdInput" name="project_id" type="text" placeholder="AREPAS-DOG-BURGER.COM" required>
+      </label>
+      <div class="form-grid">
+        <label>
+          <span>status</span>
+          <i class="fa-solid fa-toggle-on"></i>
+          <select id="projectStatusInput" name="status">
+            <option value="active">active</option>
+            <option value="blocked">blocked</option>
+          </select>
+        </label>
+        <label>
+          <span>amount COP</span>
+          <i class="fa-solid fa-coins"></i>
+          <input id="projectAmountInput" name="amount" type="number" min="0" step="1000" placeholder="850000">
+        </label>
+      </div>
+      <label>
+        <span>message</span>
+        <i class="fa-solid fa-message"></i>
+        <textarea id="projectMessageInput" name="message" rows="4" placeholder="Pago pendiente"></textarea>
+      </label>
+      <div class="dialog-actions">
+        <button class="button ghost" type="button" id="cancelDialog">Cancelar</button>
+        <button class="button primary" type="submit"><i class="fa-solid fa-floppy-disk"></i> Guardar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div class="toast-stack" id="toastStack" aria-live="polite"></div>
+  <div class="screen-loader" id="screenLoader" aria-hidden="true">
+    <span></span>
+    <p>Sincronizando universo</p>
+  </div>
+  <div class="blocker-modal" id="blockerModal" aria-hidden="true">
+    <div class="blocker-orbit"></div>
+    <div class="blocker-card">
+      <span class="blocker-icon"><i class="fa-solid fa-lock"></i></span>
+      <p class="eyebrow">Proyecto bloqueado</p>
+      <h2 id="blockerProject">Sistema pausado</h2>
+      <strong id="blockerAmount">$0 COP</strong>
+      <p id="blockerMessage">Pago pendiente</p>
+      <a class="button primary" id="blockerWhatsApp" href="#" target="_blank" rel="noopener">
+        <i class="fa-brands fa-whatsapp"></i> Resolver por WhatsApp
+      </a>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.2/anime.min.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/charts.js"></script>
+  <script src="js/projects.js"></script>
+</body>
+</html>

@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="700" viewBox="0 0 1600 700" role="img" aria-label="Campo estelar abstracto">
+  <rect width="1600" height="700" fill="#0a0a0f"/>
+  <g fill="#ffffff" opacity=".7">
+    <circle cx="94" cy="88" r="1.4"/>
+    <circle cx="223" cy="182" r="1"/>
+    <circle cx="358" cy="63" r="1.6"/>
+    <circle cx="502" cy="144" r="1.2"/>
+    <circle cx="721" cy="94" r="1.4"/>
+    <circle cx="815" cy="214" r="1"/>
+    <circle cx="980" cy="76" r="1.8"/>
+    <circle cx="1168" cy="138" r="1"/>
+    <circle cx="1372" cy="72" r="1.5"/>
+    <circle cx="1510" cy="194" r="1"/>
+    <circle cx="134" cy="412" r="1.2"/>
+    <circle cx="278" cy="536" r="1.5"/>
+    <circle cx="446" cy="386" r="1"/>
+    <circle cx="608" cy="508" r="1.4"/>
+    <circle cx="782" cy="432" r="1"/>
+    <circle cx="948" cy="575" r="1.7"/>
+    <circle cx="1124" cy="402" r="1"/>
+    <circle cx="1298" cy="520" r="1.5"/>
+    <circle cx="1462" cy="368" r="1.2"/>
+  </g>
+  <path d="M-60 580 C260 420 420 500 690 360 C900 250 1090 310 1270 170 C1390 78 1500 50 1660 92" fill="none" stroke="#c084fc" stroke-opacity=".25" stroke-width="2"/>
+  <path d="M-40 632 C230 505 470 610 760 430 C980 294 1160 380 1430 214 C1510 164 1580 143 1660 150" fill="none" stroke="#7c3aed" stroke-opacity=".28" stroke-width="3"/>
+</svg>
