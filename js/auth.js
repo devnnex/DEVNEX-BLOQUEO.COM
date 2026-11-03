@@ -59,11 +59,12 @@ window.DevnexAuth = (() => {
     document.getElementById("loginView")?.setAttribute("hidden", "hidden");
     document.getElementById("appShell")?.removeAttribute("hidden");
     app.setView(view);
+    window.dispatchEvent(new Event("devnex:login"));
   };
 
   const getHashView = () => {
     const hash = location.hash.replace("#", "");
-    return ["dashboard", "projects", "settings"].includes(hash) ? hash : "dashboard";
+    return ["dashboard", "projects", "payments", "settings"].includes(hash) ? hash : "dashboard";
   };
 
   return {

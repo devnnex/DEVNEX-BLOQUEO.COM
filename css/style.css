@@ -23,6 +23,7 @@
 
 html {
   min-height: 100%;
+  -webkit-text-size-adjust: 100%;
   background: var(--bg);
 }
 
@@ -351,7 +352,7 @@ button {
 }
 
 body.auth-mode {
-  overflow: hidden;
+  overflow-y: auto;
 }
 
 .app-view {
@@ -374,31 +375,35 @@ body.auth-mode {
 .login-layout {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(320px, 520px) minmax(320px, 1fr);
+  grid-template-columns: minmax(0, 480px) minmax(0, 1fr);
   align-items: center;
-  gap: 7vw;
-  min-height: 100vh;
-  padding: 7vw;
+  gap: 5vw;
+  min-height: 100svh;
+  width: min(1200px, 100%);
+  margin: auto;
+  padding: clamp(16px, 4vh, 36px) 24px;
 }
 
 .login-card {
-  padding: clamp(24px, 4vw, 44px);
+  min-width: 0;
+  padding: clamp(22px, 3vw, 36px);
+  border-radius: 24px;
 }
 
 .login-brand {
-  margin-bottom: 44px;
+  margin-bottom: 24px;
 }
 
 .login-copy h1 {
-  max-width: 10ch;
-  font-size: clamp(2.7rem, 6vw, 5.7rem);
-  line-height: 0.9;
+  max-width: 13ch;
+  font-size: clamp(2rem, 3.5vw, 3.3rem);
+  line-height: 1.06;
 }
 
 .login-copy p:last-child {
   max-width: 42ch;
   color: var(--muted);
-  line-height: 1.7;
+  line-height: 1.5;
 }
 
 .premium-form {
@@ -439,6 +444,32 @@ body.auth-mode {
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.08);
 }
+
+input,select,textarea { min-width: 0; max-width: 100%; font-size: 16px; color: inherit; }
+select option { background: var(--bg); color: inherit; }
+button,a { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible { outline: 3px solid var(--lilac); outline-offset: 3px; }
+button:disabled { cursor: wait; opacity: .5; }
+.brand-mark { object-fit: contain; background: #08070c; box-shadow: none; border-radius: 12px; }
+.app-shell.sidebar-collapsed { grid-template-columns: 88px minmax(0,1fr); }
+.sidebar.collapsed { padding: 14px; }
+.login-orbital { min-height: 420px; }
+.form-help { color: var(--muted); font-size: 13px; line-height: 1.6; margin: 0; }
+.warning-fields { display: grid; gap: 14px; min-width: 0; margin: 0; padding: 16px; border: 1px solid #a78bfa55; border-radius: 12px; }
+.warning-fields legend { padding: 0 6px; font-size: 13px; color: var(--lilac); }
+.warning-fields input,.warning-fields select { padding-left: 12px; }
+.premium-form .checkbox-label { display: flex; align-items: center; gap: 10px; }
+.checkbox-label input { min-height: 24px; width: 24px; accent-color: var(--violet); }
+.status-badge.warning { color: #fde68a; background: #f59e0b22; }
+.deadline-label { display: block; margin-top: 6px; font-size: 11px; color: var(--muted); white-space: nowrap; }
+.project-dialog { max-height: calc(100dvh - 24px); overflow-y: auto; overscroll-behavior: contain; border-radius: 18px; }
+.toast { max-width: min(440px,calc(100vw - 24px)); overflow-wrap: anywhere; }
+.toast-stack { pointer-events: none; }
+.login-view { overflow: visible; }
+.login-copy h1 { margin: 12px 0; }
+.login-meta { margin-top: 20px; }
+.hero-copy h2 { font-size: clamp(1.7rem,3vw,3.1rem); line-height: 1.12; }
+@media(prefers-reduced-motion:reduce) { *,*::before,*::after { animation: none!important; transition: none!important; scroll-behavior: auto!important; } }
 
 .premium-form textarea {
   min-height: 112px;

@@ -12,7 +12,8 @@ window.DevnexUI = (() => {
     if (!stack) return;
     const toast = document.createElement("div");
     toast.className = `toast ${type}`;
-    toast.innerHTML = `<i class="fa-solid ${type === "error" ? "fa-circle-exclamation" : "fa-circle-check"}"></i><span>${message}</span>`;
+    toast.innerHTML = `<i class="fa-solid ${type === "error" ? "fa-circle-exclamation" : "fa-circle-check"}"></i><span></span>`;
+    toast.querySelector("span").textContent = message;
     stack.appendChild(toast);
 
     if (window.anime) {
@@ -37,7 +38,10 @@ window.DevnexUI = (() => {
     const sidebar = document.getElementById("sidebar");
     const collapse = document.getElementById("collapseSidebar");
 
-    collapse?.addEventListener("click", () => sidebar?.classList.toggle("collapsed"));
+    collapse?.addEventListener("click", () => {
+      if (matchMedia("(max-width: 920px)").matches) sidebar?.classList.remove("open");
+      else { sidebar?.classList.toggle("collapsed"); document.getElementById("appShell")?.classList.toggle("sidebar-collapsed"); }
+    });
 
     document.querySelectorAll("#mobileMenu, [data-mobile-menu]").forEach((button) => {
       button.addEventListener("click", () => sidebar?.classList.toggle("open"));

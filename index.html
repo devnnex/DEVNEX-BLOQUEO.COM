@@ -2,16 +2,17 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
   <meta name="theme-color" content="#0a0a0f">
   <meta name="application-name" content="DevNex">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="DevNex">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>Devnex Control</title>
+  <meta name="description" content="DEVNEX Control: recordatorios de pago, plazos y gestión de proyectos.">
+  <title>DEVNEX Control</title>
   <link rel="icon" type="image/png" href="assets/icons/favicon.png">
-  <link rel="apple-touch-icon" href="assets/icons/favicon-192.png">
+  <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
   <link rel="manifest" href="manifest.json">
   <link rel="preconnect" href="https://cdnjs.cloudflare.com">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
@@ -19,29 +20,30 @@
   <link rel="stylesheet" href="css/dashboard.css">
   <link rel="stylesheet" href="css/animations.css">
   <link rel="stylesheet" href="css/responsive.css">
+  <link rel="stylesheet" href="css/payments.css">
 </head>
-<body data-page="dashboard">
+<body data-page="dashboard" data-devnex-console="true">
   <section class="login-view" id="loginView" aria-label="Login" hidden>
     <canvas class="particle-canvas" id="particleCanvas" aria-hidden="true"></canvas>
     <main class="login-layout">
       <section class="login-card glass-panel">
         <a class="brand login-brand" href="#login">
-          <span class="brand-mark"><i class="fa-solid fa-bolt"></i></span>
+          <img class="brand-mark" src="assets/logos/devnex-mark.svg" width="44" height="44" alt="">
           <span class="brand-copy">
             <strong>Devnex</strong>
             <small>Control OS</small>
           </span>
         </a>
         <div class="login-copy">
-          <p class="eyebrow">Secure SaaS Console</p>
+          <p class="eyebrow">Control de proyectos</p>
           <h1>Entra al centro de mando.</h1>
-          <p>Gestiona bloqueos, cobros y estado operativo de tus proyectos conectados por project_id.</p>
+          <p>Gestiona tus proyectos, envía recordatorios y acuerda los pagos desde un solo lugar.</p>
         </div>
         <form class="premium-form" id="loginForm">
           <label>
             <span>Usuario</span>
             <i class="fa-solid fa-user"></i>
-            <input type="text" name="user" autocomplete="username" placeholder="admin" required>
+            <input type="text" name="user" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="Tu usuario" required>
           </label>
           <label>
             <span>Clave</span>
@@ -54,8 +56,7 @@
           </button>
         </form>
         <div class="login-meta">
-          <span><i class="fa-solid fa-shield-halved"></i> Local secure session</span>
-          <span><i class="fa-solid fa-wand-magic-sparkles"></i> API ready</span>
+          <span><i class="fa-solid fa-mobile-screen"></i> Tus proyectos, contigo</span>
         </div>
       </section>
       <aside class="login-orbital">
@@ -64,8 +65,8 @@
         <div class="ring ring-two"></div>
         <div class="signal-card glass-panel">
           <span class="pulse-dot"></span>
-          <strong>99.98%</strong>
-          <small>Operational uptime</small>
+          <strong>DEVNEX</strong>
+          <small>Soluciones tecnológicas</small>
         </div>
       </aside>
     </main>
@@ -74,7 +75,7 @@
   <div class="app-shell" id="appShell" hidden>
     <aside class="sidebar glass-panel" id="sidebar">
       <a class="brand" href="#dashboard" aria-label="Devnex Control">
-        <span class="brand-mark"><i class="fa-solid fa-bolt"></i></span>
+        <img class="brand-mark" src="assets/logos/devnex-mark.svg" width="44" height="44" alt="">
         <span class="brand-copy">
           <strong>Devnex</strong>
           <small>Control OS</small>
@@ -83,12 +84,13 @@
       <nav class="side-nav" aria-label="Navegacion principal">
         <a class="nav-link active" href="#dashboard" data-view-link="dashboard"><i class="fa-solid fa-chart-pie"></i><span>Dashboard</span></a>
         <a class="nav-link" href="#projects" data-view-link="projects"><i class="fa-solid fa-layer-group"></i><span>Proyectos</span></a>
-        <a class="nav-link" href="#settings" data-view-link="settings"><i class="fa-solid fa-sliders"></i><span>Settings</span></a>
+        <a class="nav-link" href="#payments" data-view-link="payments"><i class="fa-solid fa-calendar-check"></i><span>Pagos</span></a>
+        <a class="nav-link" href="#settings" data-view-link="settings"><i class="fa-solid fa-sliders"></i><span>Ajustes</span></a>
       </nav>
       <div class="sidebar-footer">
         <div class="mini-status">
           <span class="pulse-dot"></span>
-          <span>Project ID Sync</span>
+          <span>Control de servicios</span>
         </div>
         <button class="icon-button" id="collapseSidebar" type="button" aria-label="Contraer menu" data-tooltip="Contraer">
           <i class="fa-solid fa-chevron-left"></i>
@@ -103,8 +105,8 @@
             <i class="fa-solid fa-bars"></i>
           </button>
           <div>
-            <p class="eyebrow">Command Center</p>
-            <h1>Administracion de proyectos</h1>
+            <p class="eyebrow">Centro de mando</p>
+            <h1>Administración de proyectos</h1>
           </div>
           <div class="topbar-actions">
             <div class="search-shell">
@@ -122,8 +124,8 @@
 
         <section class="hero-strip">
           <div class="hero-copy">
-            <p class="eyebrow">Apps Script API</p>
-            <h2>Controla bloqueos, deuda y mensajes de cada sistema desplegado.</h2>
+            <p class="eyebrow">Tu operación, en orden</p>
+            <h2>Un recordatorio a tiempo. Tus proyectos al día.</h2>
           </div>
           <div class="hero-metric">
             <span id="currentProjectId">Proyecto actual</span>
@@ -148,7 +150,7 @@
             <span class="stat-icon emerald"><i class="fa-solid fa-unlock"></i></span>
             <p>Activos</p>
             <strong id="statActive">0</strong>
-            <small>Operando normal</small>
+            <small id="statWarningNote">Sin suspensión</small>
           </article>
           <article class="stat-card glass-panel skeleton-box">
             <span class="stat-icon amber"><i class="fa-solid fa-coins"></i></span>
@@ -200,11 +202,11 @@
             <i class="fa-solid fa-bars"></i>
           </button>
           <div>
-            <p class="eyebrow">Projects</p>
+              <p class="eyebrow">Proyectos</p>
             <h1>Sistemas conectados</h1>
           </div>
           <div class="topbar-actions">
-            <button class="button ghost" type="button" data-refresh><i class="fa-solid fa-rotate"></i> Sync</button>
+            <button class="button ghost" type="button" data-refresh><i class="fa-solid fa-rotate"></i> Actualizar</button>
             <button class="button primary" id="newProjectButton" type="button"><i class="fa-solid fa-plus"></i> Nuevo</button>
             <button class="avatar-button logout-button" type="button" aria-label="Cerrar sesion"><span>DX</span></button>
           </div>
@@ -219,6 +221,7 @@
             <div class="segmented-control" id="statusFilter" role="tablist" aria-label="Filtrar proyectos">
               <button class="active" type="button" data-filter="all">Todos</button>
               <button type="button" data-filter="active">Activos</button>
+              <button type="button" data-filter="warning">En aviso</button>
               <button type="button" data-filter="blocked">Bloqueados</button>
             </div>
           </div>
@@ -228,9 +231,9 @@
               <thead>
                 <tr>
                   <th>project_id</th>
-                  <th>status</th>
-                  <th>amount</th>
-                  <th>message</th>
+                  <th>Estado / plazo</th>
+                  <th>Deuda</th>
+                  <th>Mensaje</th>
                   <th class="right">acciones</th>
                 </tr>
               </thead>
@@ -252,13 +255,29 @@
         </section>
       </section>
 
+      <section class="app-view" data-view="payments">
+        <header class="topbar glass-panel">
+          <button class="icon-button mobile-menu" type="button" aria-label="Abrir menú" data-mobile-menu><i class="fa-solid fa-bars"></i></button>
+          <div><p class="eyebrow">Agenda de cobros</p><h1>Pagos de clientes</h1></div>
+          <div class="topbar-actions"><button class="button ghost" id="refreshPayments" type="button">Actualizar</button><button class="button primary" id="newPayment" type="button">+ Agendar pago</button></div>
+        </header>
+        <section class="panel glass-panel payment-intro"><div><h3>Contratos al día, sin perder una fecha</h3><p class="form-help">Programa cobros únicos o recurrentes. Los avisos son para ti; la agenda de pagos no suspende automáticamente a tus clientes.</p></div><a class="button ghost" href="#settings" data-view-link="settings">Configurar notificaciones</a></section>
+        <div class="payment-summary" id="paymentSummary"></div>
+        <section class="panel glass-panel">
+          <div class="table-toolbar"><div class="search-shell grow"><i class="fa-solid fa-magnifying-glass"></i><input id="paymentSearch" type="search" placeholder="Buscar cliente, proyecto o concepto" aria-label="Buscar pagos"></div><select id="paymentFilter" aria-label="Filtrar pagos"><option value="pending">Pendientes</option><option value="overdue">Vencidos</option><option value="upcoming">Próximos</option><option value="done">Finalizados</option><option value="all">Todos</option></select></div>
+          <p class="form-help">Todas las fechas y horas de la agenda corresponden a Colombia (Bogotá).</p>
+          <p id="paymentStatus" class="form-help" role="status"></p>
+          <div class="payment-list" id="paymentList"></div>
+        </section>
+      </section>
+
       <section class="app-view" data-view="settings">
         <header class="topbar glass-panel">
           <button class="icon-button mobile-menu" type="button" aria-label="Abrir menu" data-mobile-menu>
             <i class="fa-solid fa-bars"></i>
           </button>
           <div>
-            <p class="eyebrow">Settings</p>
+            <p class="eyebrow">Ajustes</p>
             <h1>Apariencia y cuenta</h1>
           </div>
           <div class="topbar-actions">
@@ -267,6 +286,16 @@
         </header>
 
         <section class="settings-grid">
+          <article class="panel glass-panel notification-settings">
+            <div class="panel-heading"><div><p class="eyebrow">Avisos en tu teléfono</p><h3>Notificaciones y agenda privada</h3></div><span class="panel-badge" id="pushBadge">Sin activar</span></div>
+            <p class="form-help" id="pushStatus" role="status">Vincula este dispositivo para acceder a tu agenda y recibir avisos de cobros y proyectos vencidos.</p>
+            <form id="pairDeviceForm" class="premium-form compact">
+              <label><span>Clave de vinculación DEVNEX</span><input id="pairingKey" type="password" autocomplete="off" spellcheck="false" placeholder="Pega tu clave privada" required></label>
+              <button class="button ghost" type="submit">Vincular este dispositivo</button>
+            </form>
+            <div class="notification-actions"><button class="button primary" id="enablePush" type="button">Activar notificaciones</button><button class="button ghost" id="testPush" type="button" hidden>Probar en este dispositivo</button><button class="button ghost" id="disablePush" type="button" hidden>Desactivar</button></div>
+            <p class="form-help">Recibirás avisos al vencer un proyecto, al llegar una fecha de pago y, si lo eliges, antes de un cobro. La revisión se ejecuta aproximadamente cada 5 minutos; puede demorarse. En iPhone instala la PWA antes de activar los avisos.</p>
+          </article>
           <article class="panel glass-panel">
             <div class="panel-heading">
               <div>
@@ -277,7 +306,7 @@
             </div>
             <div class="setting-row">
               <div>
-                <strong>Dark mode</strong>
+                <strong>Modo oscuro</strong>
                 <span>Consola oscura galactica</span>
               </div>
               <label class="switch">
@@ -287,7 +316,7 @@
             </div>
             <div class="setting-row">
               <div>
-                <strong>Glass intensity</strong>
+                <strong>Efecto de cristal</strong>
                 <span>Profundidad visual</span>
               </div>
               <input class="range" id="glassRange" type="range" min="10" max="34" value="22">
@@ -332,11 +361,33 @@
             </div>
             <button class="button ghost" id="clearLocalData" type="button"><i class="fa-solid fa-broom"></i> Limpiar demo local</button>
           </article>
+          <article class="panel glass-panel">
+            <div class="panel-heading"><div><p class="eyebrow">Siempre a mano</p><h3>Instalar DEVNEX</h3></div></div>
+            <p class="form-help" id="installHelp">En iPhone o iPad, abre en Safari, toca Compartir y selecciona Añadir a pantalla de inicio. En Android o PC, usa Instalar aplicación en el menú del navegador.</p>
+            <button class="button primary" id="installApp" type="button" hidden><i class="fa-solid fa-download"></i> Instalar aplicación</button>
+            <p class="form-help" id="connectionStatus" role="status"></p>
+          </article>
         </section>
       </section>
     </main>
   </div>
 
+  <dialog class="project-dialog glass-panel" id="paymentDialog" aria-labelledby="paymentDialogTitle">
+    <form class="premium-form" id="paymentForm">
+      <div class="dialog-heading"><div><p class="eyebrow">Agenda de cobros</p><h2 id="paymentDialogTitle">Agendar pago</h2></div><button class="icon-button" type="button" data-close-payment aria-label="Cerrar">×</button></div>
+      <label><span>Cliente</span><input name="client" type="text" maxlength="100" placeholder="Nombre del cliente" required></label>
+      <label><span>Proyecto asociado (opcional)</span><input name="project_id" type="text" list="paymentProjectOptions" placeholder="Identificador del proyecto"><datalist id="paymentProjectOptions"></datalist></label>
+      <div class="form-grid"><label><span>Valor en pesos colombianos</span><input name="amount" type="number" min="1" step="1" inputmode="numeric" placeholder="250000" required></label><label><span>Fecha y hora · Colombia</span><input name="due_local" type="datetime-local" required></label></div>
+      <div class="form-grid"><label><span>Frecuencia</span><select name="frequency"><option value="once">Pago único</option><option value="weekly">Semanal · cada 7 días</option><option value="fortnightly">Quincenal · cada 15 días</option><option value="monthly">Mensual · mismo día</option><option value="custom">Cada cierto número de días</option></select></label><label id="customIntervalLabel" hidden><span>Intervalo en días</span><input name="interval_days" type="number" min="1" max="3650" value="30" step="1"></label></div>
+      <label><span>Recordatorio anticipado</span><select name="remind_before_hours"><option value="0">Solo al llegar la fecha</option><option value="1">1 hora antes</option><option value="24">1 día antes</option><option value="48">2 días antes</option><option value="168">1 semana antes</option></select></label>
+      <label><span>Concepto o nota (opcional)</span><textarea name="note" maxlength="300" rows="2" placeholder="Mensualidad del sistema, cuota del contrato…"></textarea></label>
+      <p class="form-help">Al marcar un pago como recibido, se agenda el siguiente período. Los pagos atrasados no se omiten.</p>
+      <div class="dialog-actions"><button class="button ghost" type="button" data-close-payment>Cancelar</button><button class="button primary" type="submit">Guardar pago</button></div>
+    </form>
+  </dialog>
+  <dialog class="project-dialog glass-panel notification-dialog" id="notificationDialog" aria-labelledby="notificationTitle">
+    <div class="notification-prompt"><img src="assets/icons/favicon-192.png" alt="" width="64" height="64"><p class="eyebrow">DEVNEX te avisa</p><h2 id="notificationTitle">Tus cobros, a tiempo</h2><p>Activa las notificaciones para recibir un resumen con el cliente, el valor en COP y los proyectos cuyo plazo haya vencido, incluso con la app cerrada.</p><button class="button primary wide" type="button" id="promptEnablePush">Activar notificaciones</button><button class="button ghost wide" type="button" id="laterPush">Más tarde</button><p class="form-help" id="promptPushStatus" role="status"></p></div>
+  </dialog>
   <dialog class="project-dialog glass-panel" id="projectDialog">
     <form class="premium-form" id="projectForm" method="dialog">
       <div class="dialog-heading">
@@ -349,27 +400,39 @@
       <label>
         <span>project_id</span>
         <i class="fa-solid fa-code-branch"></i>
-        <input id="projectIdInput" name="project_id" type="text" placeholder="AREPAS-DOG-BURGER.COM" required>
+        <input id="projectIdInput" name="project_id" type="text" autocapitalize="none" spellcheck="false" placeholder="AREPAS-DOG-BURGER.COM" required>
       </label>
       <div class="form-grid">
         <label>
-          <span>status</span>
+          <span>Estado del servicio</span>
           <i class="fa-solid fa-toggle-on"></i>
           <select id="projectStatusInput" name="status">
-            <option value="active">active</option>
-            <option value="blocked">blocked</option>
+            <option value="active">Activo · sin aviso</option>
+            <option value="warning">Avisar · iniciar contador</option>
+            <option value="blocked">Bloquear ahora</option>
           </select>
         </label>
         <label>
-          <span>amount COP</span>
+          <span>Deuda en COP</span>
           <i class="fa-solid fa-coins"></i>
           <input id="projectAmountInput" name="amount" type="number" min="0" step="1000" placeholder="850000">
         </label>
       </div>
+      <fieldset id="warningFields" class="warning-fields" hidden disabled>
+        <legend>Recordatorio antes de suspender</legend>
+        <div class="form-grid">
+          <label><span>Plazo en horas</span><input id="warningHoursInput" name="warning_hours" type="number" inputmode="decimal" min="0.01" max="8760" step="0.01" value="24" required></label>
+          <label><span>Posición del aviso</span><select id="warningPositionInput" name="warning_position"><option value="top-right">Esquina superior derecha</option><option value="top-left">Esquina superior izquierda</option></select></label>
+        </div>
+        <label><span>Distancia desde arriba (px)</span><input id="warningTopInput" name="warning_top" type="number" inputmode="numeric" min="0" max="600" step="1" value="110"></label>
+        <p class="form-help" id="deadlinePreview" role="status"></p>
+        <label class="checkbox-label" id="restartWarningLabel" hidden><input id="restartWarningInput" type="checkbox"><span>Reiniciar el plazo desde que guarde los cambios</span></label>
+        <p class="form-help">El cliente podrá trabajar durante este plazo. Al llegar a cero, aparecerá la suspensión con los datos de pago.</p>
+      </fieldset>
       <label>
-        <span>message</span>
+        <span>Mensaje para el cliente</span>
         <i class="fa-solid fa-message"></i>
-        <textarea id="projectMessageInput" name="message" rows="4" placeholder="Pago pendiente"></textarea>
+        <textarea id="projectMessageInput" name="message" rows="4" maxlength="2000" placeholder="Hola, te recordamos cordialmente tu pago pendiente. Contáctanos para acordarlo y mantener tu servicio activo."></textarea>
       </label>
       <div class="dialog-actions">
         <button class="button ghost" type="button" id="cancelDialog">Cancelar</button>
@@ -400,10 +463,16 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.2/anime.min.js"></script>
   <script src="js/app.js"></script>
+  <script src="js/project-guard.js"></script>
   <script src="js/api.js"></script>
   <script src="js/ui.js"></script>
   <script src="js/auth.js"></script>
   <script src="js/charts.js"></script>
   <script src="js/projects.js"></script>
+  <script src="js/private-store.js"></script>
+  <script src="js/payment-model.js"></script>
+  <script src="js/payments.js"></script>
+  <script src="js/notifications.js"></script>
+  <script src="js/pwa.js"></script>
 </body>
 </html>

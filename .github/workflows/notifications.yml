@@ -1,0 +1,26 @@
+name: DEVNEX · Notificaciones
+on:
+  schedule:
+    - cron: '3-58/5 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: devnex-notifications
+  cancel-in-progress: false
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --omit=dev --ignore-scripts
+      - name: Revisar plazos y enviar Web Push
+        run: node scripts/send-notifications.cjs
+        env:
+          DEVNEX_OWNER_KEY: ${{ secrets.DEVNEX_OWNER_KEY }}
+          DEVNEX_VAPID_PRIVATE_KEY: ${{ secrets.DEVNEX_VAPID_PRIVATE_KEY }}

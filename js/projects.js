@@ -1,6 +1,10 @@
 window.DevnexProjects = (() => {
   const app = window.DevnexApp;
   let controlsBound = false;
+  let renderedStatuses = "";
+  const statusOf = project => DevnexProjectState.status(project);
+  const statusLabel = project => ({ active: "Activo", warning: "En aviso", blocked: "Bloqueado" })[statusOf(project)];
+  const deadlineLabel = project => project.deadline_at ? new Intl.DateTimeFormat("es-CO", { dateStyle: "medium", timeStyle: "short" }).format(new Date(project.deadline_at)) : "";
 
   const reload = async () => {
     try {
@@ -62,7 +66,7 @@ window.DevnexProjects = (() => {
 
   const renderStats = (projects) => {
     const total = projects.length;
-    const blocked = projects.filter((project) => project.status === "blocked").length;
+    const blocked = projects.filter((project) => statusOf(project) === "blocked").length;
     const active = total - blocked;
     const amount = projects.reduce((sum, project) => sum + Number(project.amount || 0), 0);
 
@@ -70,6 +74,7 @@ window.DevnexProjects = (() => {
     setText("statBlocked", blocked);
     setText("statActive", active);
     setText("statAmount", DevnexUI.formatCOP(amount));
+    setText("statWarningNote", `${projects.filter(p => statusOf(p) === "warning").length} con recordatorio`);
   };
 
   const renderActivity = (projects) => {
@@ -77,12 +82,12 @@ window.DevnexProjects = (() => {
     if (!list) return;
     list.innerHTML = projects.slice(0, 6).map((project) => `
       <div class="activity-item">
-        <span class="activity-icon"><i class="fa-solid ${project.status === "blocked" ? "fa-lock" : "fa-unlock"}"></i></span>
+        <span class="activity-icon"><i class="fa-solid ${statusOf(project) === "blocked" ? "fa-lock" : statusOf(project) === "warning" ? "fa-clock" : "fa-unlock"}"></i></span>
         <div>
           <strong>${escapeHTML(project.project_id)}</strong>
           <span>${escapeHTML(project.message || "Sin mensaje")}</span>
         </div>
-        <span class="status-badge ${project.status}">${project.status}</span>
+        <span class="status-badge ${statusOf(project)}">${statusLabel(project)}</span>
       </div>
     `).join("");
   };
@@ -92,9 +97,7 @@ window.DevnexProjects = (() => {
     const project = projects.find((item) => item.project_id === id);
     setText("currentProjectId", id);
     setText("currentProjectStatus", project?.status || "No registrado");
-    if (project?.status === "blocked") {
-      DevnexUI.showBlockerModal(project);
-    }
+    // The owner console must remain available to manage and unlock clients.
   };
 
   const bindProjectControls = () => {
@@ -132,6 +135,17 @@ window.DevnexProjects = (() => {
     document.getElementById("closeDialog")?.addEventListener("click", closeDialog);
     document.getElementById("cancelDialog")?.addEventListener("click", closeDialog);
     document.getElementById("projectForm")?.addEventListener("submit", saveProjectFromForm);
+    ["projectStatusInput", "warningHoursInput", "restartWarningInput"].forEach(id => document.getElementById(id)?.addEventListener("change", syncWarningFields));
+    setInterval(() => {
+      if (app.page === "projects" && !document.hidden) {
+        if (renderedStatuses !== app.state.projects.map(statusOf).join(",")) renderProjectsTable();
+        else document.querySelectorAll("[data-countdown]").forEach(el => {
+          const project = app.state.projects.find(p => p.project_id === el.dataset.countdown);
+          if (project) el.textContent = statusOf(project) === "blocked" ? "Plazo vencido" : countdownLabel(project);
+        });
+      }
+      if (app.page === "dashboard" && !document.hidden) renderStats(app.state.projects);
+    }, 1000);
 
     document.getElementById("projectsTableBody")?.addEventListener("click", handleTableAction);
   };
@@ -139,6 +153,7 @@ window.DevnexProjects = (() => {
   const renderProjectsTable = () => {
     const tbody = document.getElementById("projectsTableBody");
     if (!tbody) return;
+    renderedStatuses = app.state.projects.map(statusOf).join(",");
     const query = app.state.search;
     const filter = app.state.filter;
     const filtered = app.state.projects.filter((project) => {
@@ -146,11 +161,12 @@ window.DevnexProjects = (() => {
         .join(" ")
         .toLowerCase()
         .includes(query);
-      const matchesFilter = filter === "all" || project.status === filter;
+      const matchesFilter = filter === "all" || statusOf(project) === filter;
       return matchesSearch && matchesFilter;
     });
 
     app.state.filteredProjects = filtered;
+    app.state.currentPage = Math.min(app.state.currentPage, Math.max(1, Math.ceil(filtered.length / app.state.pageSize)));
     const start = (app.state.currentPage - 1) * app.state.pageSize;
     const pageItems = filtered.slice(start, start + app.state.pageSize);
 
@@ -168,14 +184,14 @@ window.DevnexProjects = (() => {
 
   const renderProjectRow = (project) => `
     <tr>
-      <td><span class="row-project"><i class="fa-solid fa-code"></i>${escapeHTML(project.project_id)}</span></td>
-      <td><span class="status-badge ${project.status}">${project.status}</span></td>
-      <td>${DevnexUI.formatCOP(project.amount)}</td>
-      <td class="message-cell">${escapeHTML(project.message || "")}</td>
-      <td>
+      <td data-label="Proyecto"><span class="row-project"><i class="fa-solid fa-code"></i>${escapeHTML(project.project_id)}</span></td>
+      <td data-label="Estado"><span class="status-badge ${statusOf(project)}">${statusLabel(project)}</span>${project.deadline_at ? `<small class="deadline-label">${escapeHTML(deadlineLabel(project))}</small><small class="deadline-label" data-countdown="${escapeAttr(project.project_id)}">${statusOf(project) === "blocked" ? "Plazo vencido" : countdownLabel(project)}</small>` : ""}</td>
+      <td data-label="Deuda">${DevnexUI.formatCOP(project.amount)}</td>
+      <td data-label="Mensaje" class="message-cell">${escapeHTML(project.message || "Sin mensaje")}</td>
+      <td data-label="Acciones">
         <div class="actions-cell">
-          <button class="icon-button" type="button" data-action="toggle" data-id="${escapeAttr(project.project_id)}" aria-label="Cambiar estado" data-tooltip="${project.status === "blocked" ? "Activar" : "Bloquear"}">
-            <i class="fa-solid ${project.status === "blocked" ? "fa-unlock" : "fa-lock"}"></i>
+          <button class="icon-button" type="button" data-action="toggle" data-id="${escapeAttr(project.project_id)}" aria-label="${project.status === "active" ? "Programar aviso" : "Desbloquear y quitar aviso"}" data-tooltip="${project.status === "active" ? "Programar aviso" : "Activar sin aviso"}">
+            <i class="fa-solid ${project.status === "active" ? "fa-clock" : "fa-unlock"}"></i>
           </button>
           <button class="icon-button" type="button" data-action="edit" data-id="${escapeAttr(project.project_id)}" aria-label="Editar" data-tooltip="Editar">
             <i class="fa-solid fa-pen"></i>
@@ -200,7 +216,13 @@ window.DevnexProjects = (() => {
     }
 
     if (button.dataset.action === "toggle") {
-      await persistProject({ ...project, status: project.status === "blocked" ? "active" : "blocked" });
+      if (project.status === "active") {
+        openEditDialog(project);
+        document.getElementById("projectStatusInput").value = "warning";
+        syncWarningFields();
+      } else {
+        await persistProject({ ...project, status: "active", deadline_at: null });
+      }
       return;
     }
 
@@ -215,22 +237,47 @@ window.DevnexProjects = (() => {
     app.state.editingId = null;
     setText("dialogMode", "Nuevo proyecto");
     document.getElementById("projectForm").reset();
+    document.getElementById("projectIdInput").readOnly = false;
     document.getElementById("projectStatusInput").value = "active";
+    syncWarningFields();
     document.getElementById("projectDialog").showModal();
   };
 
   const openEditDialog = (project) => {
     app.state.editingId = project.project_id;
+    document.getElementById("projectForm").reset();
     setText("dialogMode", "Editar proyecto");
     document.getElementById("projectIdInput").value = project.project_id;
+    document.getElementById("projectIdInput").readOnly = true;
     document.getElementById("projectStatusInput").value = project.status;
     document.getElementById("projectAmountInput").value = project.amount;
     document.getElementById("projectMessageInput").value = project.message;
+    document.getElementById("warningHoursInput").value = project.warning_hours || 24;
+    document.getElementById("warningPositionInput").value = project.warning_position || "top-right";
+    document.getElementById("warningTopInput").value = project.warning_top ?? 110;
+    syncWarningFields();
     document.getElementById("projectDialog").showModal();
   };
 
   const closeDialog = () => {
     document.getElementById("projectDialog")?.close();
+  };
+
+  const countdownLabel = project => {
+    const r = DevnexProjectState.remaining(project.deadline_at);
+    return `${r.days}d ${String(r.hours).padStart(2,"0")}h ${String(r.minutes).padStart(2,"0")}m ${String(r.seconds).padStart(2,"0")}s`;
+  };
+
+  const syncWarningFields = () => {
+    const warning = document.getElementById("projectStatusInput").value === "warning";
+    const fields = document.getElementById("warningFields");
+    fields.hidden = !warning; fields.disabled = !warning;
+    const previous = app.state.projects.find(p => p.project_id === app.state.editingId);
+    document.getElementById("restartWarningLabel").hidden = !previous?.deadline_at;
+    const hours = Number(document.getElementById("warningHoursInput").value);
+    const keep = previous?.deadline_at && previous.warning_hours === hours && !document.getElementById("restartWarningInput").checked;
+    const deadline = keep ? previous.deadline_at : new Date(Date.now() + (hours || 24) * 3600000).toISOString();
+    setText("deadlinePreview", `${keep ? "Se conserva el vencimiento" : "Vencerá aproximadamente"}: ${deadlineLabel({ deadline_at: deadline })}.`);
   };
 
   const saveProjectFromForm = async (event) => {
@@ -243,14 +290,23 @@ window.DevnexProjects = (() => {
       amount: Number(data.get("amount") || 0),
       message: String(data.get("message") || "").trim()
     };
+    if (project.status === "warning") {
+      const hours = Number(data.get("warning_hours"));
+      if (!Number.isFinite(hours) || hours < 0.01 || hours > 8760) { DevnexUI.showToast("Ingresa un plazo entre 0.01 y 8760 horas.", "error"); return; }
+      const previous = app.state.projects.find(p => p.project_id === app.state.editingId);
+      project.warning_hours = hours;
+      project.warning_position = data.get("warning_position");
+      project.warning_top = Number(data.get("warning_top"));
+      const keep = previous?.status === "warning" && previous.deadline_at && previous.warning_hours === hours && !document.getElementById("restartWarningInput").checked;
+      project.deadline_at = keep ? previous.deadline_at : new Date(Date.now() + hours * 3600000).toISOString();
+    } else { project.deadline_at = null; }
 
     if (!project.project_id) {
       DevnexUI.showToast("project_id es requerido.", "error");
       return;
     }
 
-    await persistProject(project, !app.state.editingId);
-    closeDialog();
+    if (await persistProject(project, !app.state.editingId)) closeDialog();
   };
 
   const persistProject = async (project, isCreate = false) => {
@@ -262,9 +318,12 @@ window.DevnexProjects = (() => {
         ? app.state.projects.map((item) => item.project_id === saved.project_id ? saved : item)
         : [saved, ...app.state.projects];
       renderProjectsTable();
+      renderStats(app.state.projects);
       DevnexUI.showToast(isCreate ? "Proyecto creado." : "Proyecto actualizado.");
+      return true;
     } catch (error) {
       DevnexUI.showToast(error.message, "error");
+      return false;
     } finally {
       DevnexUI.setLoading(false);
     }
@@ -304,6 +363,7 @@ window.DevnexProjects = (() => {
   const escapeAttr = (value) => escapeHTML(value).replace(/"/g, "&quot;");
 
   return {
+    renderDashboard: () => { renderStats(app.state.projects); renderActivity(app.state.projects); DevnexCharts.createCharts(app.state.projects); },
     initDashboard,
     initProjectsPage,
     reload,

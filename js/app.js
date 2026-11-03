@@ -71,7 +71,7 @@ window.DevnexApp = {
     ]
   },
   setView(view = "dashboard") {
-    const nextView = ["dashboard", "projects", "settings"].includes(view) ? view : "dashboard";
+    const nextView = ["dashboard", "projects", "payments", "settings"].includes(view) ? view : "dashboard";
     this.page = nextView;
     document.body.dataset.page = nextView;
     document.querySelectorAll(".app-view").forEach((section) => {
@@ -96,6 +96,8 @@ window.DevnexApp = {
       this.initialized.settings = true;
       DevnexUI.initSettings();
     }
+    if (nextView === "payments") window.DevnexPayments?.init();
+    if (nextView === "dashboard" && this.initialized.dashboard && this.state.projects.length) DevnexProjects.renderDashboard();
 
     if (location.hash !== `#${nextView}`) {
       history.replaceState(null, "", `#${nextView}`);

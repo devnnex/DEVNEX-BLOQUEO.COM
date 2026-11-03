@@ -131,6 +131,7 @@
 
 .chart-panel canvas {
   max-height: 310px;
+  max-width: 100%;
 }
 
 .activity-list {

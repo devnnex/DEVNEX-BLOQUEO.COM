@@ -8,8 +8,9 @@ window.DevnexCharts = (() => {
     const amountCanvas = document.getElementById("amountChart");
     if (!statusCanvas || !amountCanvas) return;
 
-    const active = projects.filter((project) => project.status === "active").length;
-    const blocked = projects.filter((project) => project.status === "blocked").length;
+    const active = projects.filter((p) => DevnexProjectState.status(p) === "active").length;
+    const warning = projects.filter((p) => DevnexProjectState.status(p) === "warning").length;
+    const blocked = projects.filter((p) => DevnexProjectState.status(p) === "blocked").length;
     const topDebts = [...projects].sort((a, b) => b.amount - a.amount).slice(0, 6);
 
     const baseOptions = {
@@ -28,10 +29,10 @@ window.DevnexCharts = (() => {
     statusChart = new Chart(statusCanvas, {
       type: "doughnut",
       data: {
-        labels: ["Activos", "Bloqueados"],
+        labels: ["Activos", "En aviso", "Bloqueados"],
         datasets: [{
-          data: [active, blocked],
-          backgroundColor: ["#34d399", "#fb7185"],
+          data: [active, warning, blocked],
+          backgroundColor: ["#34d399", "#fbbf24", "#fb7185"],
           borderColor: "rgba(255,255,255,.1)",
           hoverOffset: 8
         }]

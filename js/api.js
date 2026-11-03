@@ -1,12 +1,7 @@
 window.DevnexAPI = (() => {
   const app = window.DevnexApp;
 
-  const normalizeProject = (project) => ({
-    project_id: String(project.project_id || project.id || "").trim(),
-    status: String(project.status || "active").toLowerCase() === "blocked" ? "blocked" : "active",
-    amount: Number(project.amount || 0),
-    message: String(project.message || "")
-  });
+  const normalizeProject = DevnexProjectState.normalize;
 
   const getLocalProjects = () => {
     const stored = localStorage.getItem(app.storageKeys.projects);
@@ -30,7 +25,7 @@ window.DevnexAPI = (() => {
       return localRequest(action, payload);
     }
 
-    const options = { method };
+    const options = { method, cache: "no-store", signal: AbortSignal.timeout(15000) };
 
     let url = app.apiUrl;
 
@@ -108,19 +103,44 @@ window.DevnexAPI = (() => {
 
   const getProjects = async () => {
     const data = await request("get", {}, "GET");
-    return extractProjects(data);
+    return extractProjects(data).filter(project => !project.project_id.startsWith("__DEVNEX_"));
+  };
+
+  const getRecords = async () => {
+    const data = await request("get", {}, "GET");
+    const source = Array.isArray(data) ? data : data.projects || data.data || data.rows || [];
+    if (!Array.isArray(source)) throw new Error("La API no devolvió una lista de registros.");
+    return source;
+  };
+  const saveRecord = async (record) => {
+    if (!String(record.project_id).startsWith("__DEVNEX_")) throw new Error("Registro interno inválido.");
+    const existing = (await getRecords()).some(p => p.project_id === record.project_id);
+    await request(existing ? "update" : "create", record);
+    const saved = (await getRecords()).find(p => p.project_id === record.project_id);
+    if (!saved || saved.message !== record.message) throw new Error("La API no confirmó el registro guardado.");
+    return saved;
   };
 
   const createProject = async (project) => {
     const normalized = normalizeProject(project);
-    const data = await request("create", normalized);
-    return data.project ? normalizeProject(data.project) : normalizeProject(project);
+    if (normalized.project_id.startsWith("__DEVNEX_")) throw new Error("Ese prefijo está reservado para registros internos.");
+    await request("create", DevnexProjectState.serialize(normalized));
+    return verifySaved(normalized);
   };
 
   const updateProject = async (project) => {
     const normalized = normalizeProject(project);
-    const data = await request("update", normalized);
-    return data.project ? normalizeProject(data.project) : normalizeProject(project);
+    await request("update", DevnexProjectState.serialize(normalized));
+    return verifySaved(normalized);
+  };
+
+  // Read back the record: never claim success if the backend dropped a schedule.
+  const verifySaved = async (expected) => {
+    const saved = (await getProjects()).find(p => p.project_id === expected.project_id);
+    if (!saved || saved.status !== expected.status || saved.deadline_at !== expected.deadline_at || saved.message !== expected.message || saved.amount !== expected.amount || (expected.status === "warning" && (saved.warning_position !== expected.warning_position || saved.warning_top !== expected.warning_top || saved.warning_hours !== expected.warning_hours))) {
+      throw new Error("La API no confirmó los cambios. Actualiza los datos antes de volver a intentar.");
+    }
+    return saved;
   };
 
   const deleteProject = async (projectId) => {
@@ -133,6 +153,8 @@ window.DevnexAPI = (() => {
     createProject,
     updateProject,
     deleteProject,
+    getRecords,
+    saveRecord,
     normalizeProject
   };
 })();
