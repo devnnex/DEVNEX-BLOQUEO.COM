@@ -15,6 +15,7 @@ window.DevnexProjects = (() => {
   const deadlineLabel = project => project.deadline_at ? new Intl.DateTimeFormat("es-CO", { dateStyle: "medium", timeStyle: "short" }).format(new Date(project.deadline_at)) : "";
 
   const reload = async () => {
+    const finish=DevnexUI.beginLoading(app.page==='projects'?'projects':'dashboard',{title:'Actualizando tu panorama',detail:'Consultando los últimos estados de tus proyectos.'});
     try {
       const revision=DevnexAPI.revision;applyRead(await DevnexAPI.getProjects({fresh:true}),revision);
       await window.DevnexConnections?.refresh();
@@ -22,7 +23,7 @@ window.DevnexProjects = (() => {
       DevnexUI.showToast("Datos sincronizados.");
     } catch (error) {
       DevnexUI.showToast(error.message, "error");
-    }
+    } finally{finish();}
   };
 
   const loadProjects = async () => {
@@ -32,21 +33,24 @@ window.DevnexProjects = (() => {
   };
 
   const initDashboard = async () => {
+    const finish=DevnexUI.beginLoading('dashboard',{title:'Preparando tu panorama',detail:'Reuniendo la información de tus proyectos.'});
     try {
       markSkeletons(true);
       const projects = await loadProjects();
       renderStats(projects);
       renderActivity(projects);
-      DevnexCharts.createCharts(projects);
+      if(app.page==='dashboard')DevnexCharts.createCharts(projects);
       renderCurrentProject(projects);
     } catch (error) {
       DevnexUI.showToast(error.message, "error");
     } finally {
       markSkeletons(false);
+      finish();
     }
   };
 
   const initProjectsPage = async () => {
+    const finish=DevnexUI.beginLoading('projects',{title:'Conectando tus proyectos',detail:'Consultando los últimos estados.'});
     bindProjectControls();
     renderProjectsTable();
     renderCurrentProject(app.state.projects);
@@ -58,7 +62,7 @@ window.DevnexProjects = (() => {
     } catch (error) {
       DevnexUI.showToast(error.message, "error");
       renderProjectsTable();
-    }
+    } finally{finish();}
   };
 
   const renderCurrentPage = () => {

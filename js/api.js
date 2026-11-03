@@ -122,7 +122,7 @@ window.DevnexAPI = (() => {
 
   const getRecords = ({fresh=false}={}) => {
     if(pendingRead)return pendingRead;
-    if(!fresh&&snapshot&&Date.now()-snapshotAt<4000)return Promise.resolve(snapshot);
+    if(!fresh&&snapshot&&Date.now()-snapshotAt<30000)return Promise.resolve(snapshot);
     const startedAtRevision=revision;
     const operation=request('get',{t:Date.now()},'GET').then(data=>{
       const source=Array.isArray(data)?data:data.projects||data.data||data.rows||[];
@@ -174,6 +174,7 @@ window.DevnexAPI = (() => {
   };
 
   return {
+    peekRecords:()=>knownRecords,
     prime,
     clearSession,
     getProjects,

@@ -64,6 +64,7 @@ async function mockRemote(context) {
   const browser = await chromium.launch(executablePath ? { executablePath, headless: true } : { headless: true });
   const errors = [];
   try {
+    await require('./loading.cjs')(browser,url);
     const context = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block',timezoneId:'America/Bogota' });
     await mockRemote(context);
     const ownerKey=backend.ownerKey;
@@ -304,7 +305,7 @@ async function mockRemote(context) {
       const buffer = await response.body(); const size = Number(icon.sizes.split('x')[0]);
       assert.equal(buffer.readUInt32BE(16),size); assert.equal(buffer.readUInt32BE(20),size);
     }
-    assert.ok((await pwa.evaluate(async () => (await caches.open('devnex-pwa-v10')).keys().then(v=>v.length))) >= 25);
+    assert.ok((await pwa.evaluate(async () => (await caches.open('devnex-pwa-v11')).keys().then(v=>v.length))) >= 25);
     // Permission and encrypted device registration without sending to a real push endpoint.
     await pwaContext.grantPermissions(['notifications']);
     const pwaSession=apiResponse('POST',{action:'login',email:'elkin56ty@gmail.com',proof:backend.proof});

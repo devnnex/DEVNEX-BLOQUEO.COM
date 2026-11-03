@@ -15,12 +15,15 @@
   <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png?v=3">
   <link rel="manifest" href="manifest.json">
   <link rel="preconnect" href="https://cdnjs.cloudflare.com">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+  <link rel="preconnect" href="https://script.google.com">
+  <link rel="preconnect" href="https://script.googleusercontent.com">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" media="print" onload="this.media='all'">
   <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" href="css/dashboard.css">
   <link rel="stylesheet" href="css/animations.css">
   <link rel="stylesheet" href="css/responsive.css">
   <link rel="stylesheet" href="css/payments.css">
+  <link rel="stylesheet" href="css/loading.css">
 </head>
 <body data-page="dashboard" data-devnex-console="true">
   <section class="login-view" id="loginView" aria-label="Login" hidden>
@@ -441,10 +444,15 @@
   </dialog>
 
   <div class="toast-stack" id="toastStack" aria-live="polite"></div>
-  <div class="screen-loader" id="screenLoader" aria-hidden="true">
-    <span></span>
-    <p>Actualizando información</p>
-  </div>
+  <template id="loadingTemplate">
+    <div class="load-card">
+      <div class="load-orbit" aria-hidden="true"><div class="load-halo"></div><div class="load-ring"></div><div class="load-ring load-ring-inner"></div><img src="assets/icons/favicon-192.png?v=3" width="72" height="72" alt=""></div>
+      <div class="load-copy"><p class="load-kicker">DEVNEX <span>CONTROL</span></p><h2 class="load-title"></h2><p class="load-detail"></p></div>
+      <div class="load-track" aria-hidden="true"><span></span></div>
+      <p class="load-caption"><span class="load-signal" aria-hidden="true"></span>Todo en su lugar.</p>
+    </div>
+  </template>
+  <div class="screen-loader" id="screenLoader" role="status" aria-live="polite" aria-hidden="true" hidden></div>
   <div class="blocker-modal" id="blockerModal" aria-hidden="true">
     <div class="blocker-orbit"></div>
     <div class="blocker-card">
@@ -459,21 +467,21 @@
     </div>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.2/anime.min.js"></script>
-  <script src="js/app.js"></script>
-  <script src="js/project-guard.js"></script>
-  <script src="js/api.js"></script>
-  <script src="js/ui.js"></script>
-  <script src="js/auth.js"></script>
-  <script src="js/charts.js"></script>
-  <script src="js/projects.js"></script>
-  <script src="js/repository-model.js"></script>
-  <script src="js/private-store.js"></script>
-  <script src="js/connections.js"></script>
-  <script src="js/payment-model.js"></script>
-  <script src="js/payments.js"></script>
-  <script src="js/notifications.js"></script>
-  <script src="js/pwa.js"></script>
+  <script async src="https://cdn.jsdelivr.net/npm/chart.js" onload="window.dispatchEvent(new Event('devnex:charts-ready'))"></script>
+  <script async src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.2/anime.min.js"></script>
+  <script defer src="js/app.js"></script>
+  <script defer src="js/project-guard.js"></script>
+  <script defer src="js/api.js"></script>
+  <script defer src="js/ui.js"></script>
+  <script defer src="js/auth.js"></script>
+  <script defer src="js/charts.js"></script>
+  <script defer src="js/projects.js"></script>
+  <script defer src="js/repository-model.js"></script>
+  <script defer src="js/private-store.js"></script>
+  <script defer src="js/connections.js"></script>
+  <script defer src="js/payment-model.js"></script>
+  <script defer src="js/payments.js"></script>
+  <script defer src="js/notifications.js"></script>
+  <script defer src="js/pwa.js"></script>
 </body>
 </html>

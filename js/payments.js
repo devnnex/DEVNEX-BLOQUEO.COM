@@ -1,6 +1,7 @@
 window.DevnexPayments = (() => {
   const model = window.DevnexPaymentModel;
-  let payments = [], editing = null, bound = false, loading = false;
+  let payments = [], editing = null, bound = false, loading = null, loaded=false, appliedRecords=null;
+  const decoded=new Map();
   const saving=new Set();
   const deleting=new Set();
   let loadGeneration=0;
@@ -8,27 +9,44 @@ window.DevnexPayments = (() => {
   const escape = value => String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const date = iso => new Intl.DateTimeFormat('es-CO',{dateStyle:'medium',timeStyle:'short',timeZone:'America/Bogota'}).format(new Date(iso));
   const key = () => localStorage.getItem('devnex.ownerKey');
-  async function load() {
-    if (loading) return;
+  async function load({fresh=false,quiet=false}={}) {
     if (!key()) { payments=[]; render(); $('paymentStatus').textContent='Inicia sesión para abrir tu agenda privada.'; return; }
-    loading=true; $('paymentStatus').textContent='Sincronizando agenda…';
+    if(loaded&&!quiet)render();
+    const finish=quiet?()=>{}:DevnexUI.beginLoading('payments',{title:'Ordenando tu agenda',detail:'Actualizando pagos, fechas y recordatorios.'});
+    if(loading)return loading.finally(finish);
+    $('paymentStatus').textContent='Sincronizando agenda…';
     const sessionToken=DevnexAuth.token();
     const generation=++loadGeneration;
-    try {
-      const records=(await DevnexAPI.getRecords()).filter(p=>String(p.project_id).startsWith(model.PREFIX));
-      const results=await Promise.allSettled(records.map(async record=> {
-        const data=await DevnexPrivateStore.open(record,key());
+    const ownerKey=key();
+    async function applyRecords(records){
+      const privateRecords=records.filter(p=>String(p.project_id).startsWith(model.PREFIX));
+      const results=await Promise.allSettled(privateRecords.map(async record=> {
+        const cached=decoded.get(record.project_id);
+        if(cached?.message===record.message)return cached.value;
+        const data=await DevnexPrivateStore.open(record,ownerKey);
         if(record.project_id!==model.PREFIX+data.id) throw new Error('Registro inválido');
-        return model.normalize(data);
+        const value=model.normalize(data);
+        if(sessionToken===DevnexAuth.token()&&generation===loadGeneration)decoded.set(record.project_id,{message:record.message,value});
+        return value;
       }));
       if(sessionToken!==DevnexAuth.token()||generation!==loadGeneration)return;
+      const ids=new Set(privateRecords.map(record=>record.project_id));for(const id of decoded.keys())if(!ids.has(id))decoded.delete(id);
       const current=payments;
       payments=results.filter(r=>r.status==='fulfilled').map(r=>r.value).filter(p=>!deleting.has(p.id)).map(p=>saving.has(p.id)?current.find(old=>old.id===p.id)||p:p);
       current.filter(p=>saving.has(p.id)&&!payments.some(row=>row.id===p.id)).forEach(p=>payments.unshift(p));
-      render();
+      loaded=true;appliedRecords=records;render();
       $('paymentStatus').textContent=results.some(r=>r.status==='rejected')?'Algunos pagos no se pudieron abrir. Vuelve a iniciar sesión.':'Agenda sincronizada · guardada de forma cifrada.';
-    } catch(error) { if(generation===loadGeneration)$('paymentStatus').textContent=error.message; }
-    finally {if(generation===loadGeneration)loading=false;}
+    }
+    const operation=(async()=>{
+      try{
+        const cached=DevnexAPI.peekRecords();
+        if(cached&&cached!==appliedRecords)await applyRecords(cached);
+        const records=await DevnexAPI.getRecords({fresh});
+        if(records!==appliedRecords||fresh)await applyRecords(records);
+        else if(generation===loadGeneration)$('paymentStatus').textContent='Agenda sincronizada · guardada de forma cifrada.';
+      }catch(error){if(generation===loadGeneration)$('paymentStatus').textContent=error.message;}
+      finally{if(generation===loadGeneration)loading=null;finish();}
+    })();loading=operation;return operation;
   }
   function render() {
     const now=Date.now(), active=payments.filter(p=>p.active), overdue=active.filter(p=>Date.parse(p.due_at)<=now);
@@ -63,19 +81,19 @@ window.DevnexPayments = (() => {
   }
   function bind() {
     if(bound)return; bound=true;
-    $('newPayment').onclick=()=>open(); $('refreshPayments').onclick=load;
+    $('newPayment').onclick=()=>open(); $('refreshPayments').onclick=()=>load({fresh:true});
     $('paymentSearch').oninput=render; $('paymentFilter').onchange=render;
     $('paymentForm').elements.frequency.onchange=syncFrequency;
     document.querySelectorAll('[data-close-payment]').forEach(button=>button.onclick=()=>$('paymentDialog').close());
     $('paymentForm').onsubmit=async event=>{
-      event.preventDefault(); const button=event.currentTarget.querySelector('[type=submit]'); if(button.disabled)return;const label=button.textContent;button.disabled=true;button.textContent='Guardando…';
+      event.preventDefault(); const form=event.currentTarget,button=form.querySelector('[type=submit]'); if(button.disabled)return;const label=button.textContent;button.disabled=true;button.textContent='Guardando…';form.setAttribute('aria-busy','true');
       try {
         const values=Object.fromEntries(new FormData(event.currentTarget));
         const due=model.fromInput(values.due_local);
         const p=model.normalize({...values,id:editing?.id||crypto.randomUUID(),due_at:due,active:true,
           anchor_day:editing?.due_at===due?editing.anchor_day:undefined,history:editing?.history||[]});
         await persist(p); $('paymentDialog').close(); DevnexUI.showToast('Pago agendado.');
-      }catch(error){DevnexUI.showToast(error.message,'error');}finally{button.disabled=false;button.textContent=label;}
+      }catch(error){DevnexUI.showToast(error.message,'error');}finally{button.disabled=false;button.textContent=label;form.removeAttribute('aria-busy');}
     };
     $('paymentList').onclick=async event=>{
       const button=event.target.closest('[data-payment-action]'); if(!button)return;
@@ -94,9 +112,9 @@ window.DevnexPayments = (() => {
         }
       }catch(error){DevnexUI.showToast(error.message,'error');button.disabled=false;}
     };
-    window.addEventListener('devnex:paired',load);
-    window.addEventListener('devnex:logout',()=>{loadGeneration++;loading=false;payments=[];editing=null;saving.clear();deleting.clear();render();});
+    window.addEventListener('devnex:paired',()=>load({quiet:true}));
+    window.addEventListener('devnex:logout',()=>{loadGeneration++;loading=null;loaded=false;appliedRecords=null;decoded.clear();payments=[];editing=null;saving.clear();deleting.clear();render();});
     setInterval(()=>{if(DevnexApp.page==='payments'&&!document.hidden)render();},60000);
   }
-  return {init:()=>{bind();load();}};
+  return {init:()=>{bind();return load();},prefetch:()=>{bind();return load({quiet:true});}};
 })();

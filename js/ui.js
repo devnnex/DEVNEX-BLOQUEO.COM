@@ -27,11 +27,38 @@ window.DevnexUI = (() => {
     }, 3400);
   };
 
-  const setLoading = (active) => {
-    const loader = document.getElementById("screenLoader");
-    if (!loader) return;
-    loader.classList.toggle("active", active);
-    loader.setAttribute("aria-hidden", String(!active));
+  const loadingOperations=new Map();
+  const beginLoading=(scope='screen',{title='Preparando tu espacio',detail='Estamos reuniendo tu información.'}={})=>{
+    let target=document.getElementById(scope==='screen'?'screenLoader':scope+'Loading');
+    if(!target&&scope!=='screen'){
+      const view=document.querySelector('.app-view[data-view="'+scope+'"]');
+      if(!view)return ()=>{};
+      target=document.createElement('div');target.id=scope+'Loading';target.className='section-loader';target.hidden=true;target.setAttribute('role','status');target.setAttribute('aria-live','polite');
+      view.querySelector('header')?.after(target);
+    }
+    if(!target)return ()=>{};
+    let state=loadingOperations.get(scope);
+    if(!state){
+      if(!target.firstElementChild)target.append(document.getElementById('loadingTemplate').content.cloneNode(true));
+      target.querySelector('.load-title').textContent=title;target.querySelector('.load-detail').textContent=detail;
+      state={target,count:0};loadingOperations.set(scope,state);
+      state.timer=setTimeout(()=>{target.hidden=false;target.classList.add('active');target.setAttribute('aria-hidden','false');target.setAttribute('aria-busy','true');},120);
+      state.slowTimer=setTimeout(()=>{target.querySelector('.load-detail').textContent='La conexión está tardando un poco. Seguimos trabajando.';},9000);
+    }
+    state.count++;let finished=false;
+    return ()=>{
+      if(finished)return;finished=true;
+      if(loadingOperations.get(scope)!==state||--state.count>0)return;
+      clearTimeout(state.timer);clearTimeout(state.slowTimer);state.target.hidden=true;state.target.classList.remove('active');state.target.setAttribute('aria-hidden','true');state.target.removeAttribute('aria-busy');loadingOperations.delete(scope);
+    };
+  };
+  let finishLegacyLoading;
+  const setLoading=active=>{if(active){finishLegacyLoading||=beginLoading();}else{finishLegacyLoading?.();finishLegacyLoading=null;}};
+  const clearLoading=()=>{
+    for(const state of loadingOperations.values()){
+      clearTimeout(state.timer);clearTimeout(state.slowTimer);state.target.hidden=true;state.target.classList.remove('active');state.target.setAttribute('aria-hidden','true');state.target.removeAttribute('aria-busy');
+    }
+    loadingOperations.clear();finishLegacyLoading=null;
   };
 
   const bindShell = () => {
@@ -144,7 +171,7 @@ window.DevnexUI = (() => {
     const canvas = document.getElementById("particleCanvas");
     if (!canvas) return;
     const context = canvas.getContext("2d");
-    const particles = Array.from({ length: 90 }, () => ({
+    const particles = Array.from({ length: innerWidth<680?36:70 }, () => ({
       x: Math.random(),
       y: Math.random(),
       r: Math.random() * 1.8 + 0.4,
@@ -157,7 +184,11 @@ window.DevnexUI = (() => {
       canvas.height = window.innerHeight * devicePixelRatio;
     };
 
+    let frame=null;
+    const motion=matchMedia('(prefers-reduced-motion: reduce)');
     const draw = () => {
+      frame=null;
+      if(document.hidden||!document.body.classList.contains('auth-mode'))return;
       context.clearRect(0, 0, canvas.width, canvas.height);
       particles.forEach((particle) => {
         particle.x = (particle.x + particle.vx + 1) % 1;
@@ -167,11 +198,14 @@ window.DevnexUI = (() => {
         context.fillStyle = "rgba(255,255,255,.72)";
         context.fill();
       });
-      requestAnimationFrame(draw);
+      if(!motion.matches)frame=requestAnimationFrame(draw);
     };
+    const resume=()=>{if(frame===null&&!document.hidden&&document.body.classList.contains('auth-mode'))draw();};
 
     resize();
     window.addEventListener("resize", resize);
+    document.addEventListener('visibilitychange',resume);
+    window.addEventListener('devnex:login-visible',resume);
     draw();
   };
 
@@ -179,6 +213,8 @@ window.DevnexUI = (() => {
     formatCOP,
     showToast,
     setLoading,
+    beginLoading,
+    clearLoading,
     bindShell,
     applySettings,
     getSettings,

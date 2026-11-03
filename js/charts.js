@@ -62,5 +62,6 @@ window.DevnexCharts = (() => {
     });
   };
 
+  window.addEventListener('devnex:charts-ready',()=>{if(window.DevnexAuth?.isLoggedIn()&&window.DevnexApp?.page==='dashboard')createCharts(DevnexApp.state.projects);});
   return { createCharts };
 })();
