@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'none'; form-action 'none'">
+<title>Configurar acceso DEVNEX</title>
+<style>*{box-sizing:border-box}body{margin:0;background:#101017;color:#fff;font:16px system-ui;line-height:1.6}main{max-width:740px;margin:32px auto;padding:24px}label{display:block;margin:18px 0}input,textarea,button{font:inherit;width:100%;padding:12px;border-radius:10px;border:1px solid #746783}input,textarea{background:#23212d;color:#fff}button{background:#7c3aed;color:white;font-weight:700;cursor:pointer}textarea{min-height:300px;font:13px monospace;white-space:pre}p{color:#d6cfe0}#status{min-height:26px}</style>
+<main><h1>Acceso de DEVNEX</h1><p>Cuenta autorizada: <strong>elkin56ty@gmail.com</strong>.</p>
+<p>Define una contraseña para DEVNEX. Esta página funciona en tu equipo y no envía datos a internet. No necesitas usar la contraseña de tu correo.</p>
+<form id="setup"><label>Contraseña de DEVNEX (mínimo 12 caracteres)<input name="password" type="password" minlength="12" autocomplete="new-password" required></label><label>Repite la contraseña<input name="confirm" type="password" minlength="12" autocomplete="new-password" required></label><button>Preparar configuración</button></form><p id="status" role="status"></p>
+<section id="result" hidden><h2>Configurar Apps Script una sola vez</h2><ol><li>Reemplaza el código del proyecto Apps Script por el archivo <strong>backend/Code.gs</strong>.</li><li>Agrega debajo la función generada aquí y guarda.</li><li>Selecciona <strong>configurarAccesoDevnex</strong> y pulsa <strong>Ejecutar</strong>. Acepta los permisos de Google.</li><li>Borra esa función de configuración y guarda; sus valores ya quedan en las Propiedades de la secuencia de comandos.</li><li>En <strong>Implementar → Administrar implementaciones → Editar</strong>, elige <strong>Nueva versión</strong> y actualiza la implementación actual. Conserva la misma URL; ejecutar como tú y acceso para cualquier persona mantiene los admin.html conectados.</li></ol><textarea id="code" readonly aria-label="Configuración privada para Apps Script"></textarea><button id="copy">Copiar configuración</button><p>Después inicia sesión en DEVNEX con tu correo y la contraseña que acabas de definir. En la PWA instalada, abre Ajustes y toca Activar notificaciones. No se pide ninguna clave de vinculación.</p></section></main>
+<script>
+const settings=__PRIVATE_CONFIG__;
+const bytes=v=>Uint8Array.from(atob(v.replace(/-/g,'+').replace(/_/g,'/')),c=>c.charCodeAt(0));
+const base64=v=>btoa(String.fromCharCode(...new Uint8Array(v))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+document.getElementById('setup').onsubmit=async event=>{
+  event.preventDefault();const form=event.currentTarget,status=document.getElementById('status'),button=form.querySelector('button');
+  if(form.password.value!==form.confirm.value){status.textContent='Las contraseñas no coinciden.';return;}
+  button.disabled=true;status.textContent='Preparando el acceso…';
+  try{
+    const material=await crypto.subtle.importKey('raw',new TextEncoder().encode(form.password.value),'PBKDF2',false,['deriveBits']);
+    const proof=base64(await crypto.subtle.deriveBits({name:'PBKDF2',hash:'SHA-256',salt:bytes(settings.salt),iterations:600000},material,256));
+    const mac=await crypto.subtle.importKey('raw',new TextEncoder().encode(settings.secret),{name:'HMAC',hash:'SHA-256'},false,['sign']);
+    const verifier=base64(await crypto.subtle.sign('HMAC',mac,new TextEncoder().encode(proof)));
+    const properties={DEVNEX_AUTH_SECRET:settings.secret,DEVNEX_AUTH_VERIFIER:verifier,DEVNEX_AUTH_SALT:settings.salt,DEVNEX_OWNER_KEY:settings.ownerKey};
+    document.getElementById('code').value='function configurarAccesoDevnex() {\n  PropertiesService.getScriptProperties().setProperties('+JSON.stringify(properties,null,2)+');\n  CacheService.getScriptCache().remove("devnex.login.failures");\n}\n';
+    form.reset();document.getElementById('result').hidden=false;status.textContent='Configuración preparada. Sigue los pasos de abajo.';
+  }catch(_){status.textContent='No se pudo preparar. Abre este archivo en Chrome o Edge actualizado.';}finally{button.disabled=false;}
+};
+document.getElementById('copy').onclick=async()=>{const code=document.getElementById('code');try{await navigator.clipboard.writeText(code.value);document.getElementById('status').textContent='Configuración copiada.';}catch(_){code.select();document.getElementById('status').textContent='Selecciona y copia el texto de configuración.';}};
+</script></html>

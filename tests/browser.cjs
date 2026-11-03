@@ -11,17 +11,13 @@ let records = [{ project_id: 'CLIENT-TEST', status: 'active', amount: 125000, me
 const clientRecord = () => records.find(p=>p.project_id==='CLIENT-TEST');
 const setClient = record => { records=records.map(p=>p.project_id==='CLIENT-TEST'?record:p); };
 let rejectWrites = false;
-const apiResponse = (method, payload, id) => {
-  if (method === 'POST') {
-    if (rejectWrites) return { success: false, message: 'Prueba: escritura rechazada' };
-    const wire = Object.fromEntries(['project_id', 'status', 'amount', 'message'].map(k => [k, payload[k]]));
-    if (payload.action === 'delete') records = records.filter(p => p.project_id !== payload.project_id);
-    else records = [wire, ...records.filter(p => p.project_id !== wire.project_id)];
-    return { success: true };
-  }
-  if(!id)return { success: true, projects: records };
-  const found=records.find(p=>p.project_id===id);
-  return found?{success:true,project:found}:{success:false,message:'PROJECT NOT FOUND'};
+let delayWrites=0;
+const backend=require('./backend-fixture.cjs').fixture();
+const apiResponse = (method, payload, id, action) => {
+  if(rejectWrites&&['create','update','delete'].includes(payload.action))return {success:false,message:'Prueba: escritura rechazada'};
+  backend.state.rows=[['project_id','status','amount','message'],...records.map(r=>[r.project_id,r.status,r.amount,r.message])];
+  const data=backend.request(method,method==='GET'?{project_id:id,action}:payload);
+  records=backend.state.rows.slice(1).map(r=>({project_id:r[0],status:r[1],amount:r[2],message:r[3]}));return data;
 };
 const clientHtml = `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Cliente de prueba</title></head><body style="margin:0;background:#edf1f5;font:16px system-ui;color:#181a20"><main id="clientApp" style="padding:24px"><header style="padding:32px;background:white;border-radius:16px"><p style="color:blue;font-weight:bold">CENTRO DE MANDO</p><h1>TIENDA NAPOLES</h1><p>Cervezas, Licores, cócteles y mucho más</p><button id="customerButton" style="padding:16px;background:blue;color:white;border:0;border-radius:10px">Ver cliente</button></header><p>El sistema sigue disponible mientras acuerdas tu pago.</p><label>Buscar producto <input id="customerInput" style="font-size:16px;padding:12px;max-width:90%"></label></main><script>window.DEVNEX_BLOCKER_CONFIG={project_id:'CLIENT-TEST',apiUrl:'/test-api'};</script><script src="/js/project-guard.js"></script></body></html>`;
 const mime = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.svg': 'image/svg+xml' };
@@ -55,7 +51,8 @@ async function screenshot(page, name) { await page.screenshot({ path: path.join(
 async function mockRemote(context) {
   await context.route('https://script.google.com/**', async route => {
     const req = route.request(), url = new URL(req.url());
-    await route.fulfill({ json: apiResponse(req.method(), req.postDataJSON() || {}, url.searchParams.get('project_id')) });
+    if(delayWrites&&['create','update','delete'].includes(req.postDataJSON()?.action))await wait(delayWrites);
+    await route.fulfill({ json: apiResponse(req.method(), req.postDataJSON() || {}, url.searchParams.get('project_id'),url.searchParams.get('action')) });
   });
   // Runtime libraries are optional; avoid third-party network dependence in functional tests.
   await context.route(/https:\/\/(cdn\.jsdelivr\.net|cdnjs\.cloudflare\.com)\//, route => route.fulfill({ body: '', contentType: route.request().resourceType() === 'stylesheet' ? 'text/css' : 'text/javascript' }));
@@ -69,12 +66,24 @@ async function mockRemote(context) {
   try {
     const context = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block',timezoneId:'America/Bogota' });
     await mockRemote(context);
-    const ownerKey=Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString('base64url');
+    const ownerKey=backend.ownerKey;
     const publicConfig=JSON.parse(fs.readFileSync(path.join(root,'push-config.json'),'utf8'));
     publicConfig.ownerKeyHash=Buffer.from(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(ownerKey))).toString('base64url');
     await context.route('**/push-config.json',route=>route.fulfill({json:publicConfig}));
+    const setupSettings={ownerKey:backend.ownerKey,salt:backend.salt,secret:backend.secret};
+    const setupHtml=fs.readFileSync(path.join(root,'scripts/auth-setup.html'),'utf8').replace('__PRIVATE_CONFIG__',JSON.stringify(setupSettings));
+    await context.route('**/auth-setup-qa.html',route=>route.fulfill({body:setupHtml,contentType:'text/html'}));
+    const setupPage=await context.newPage();await setupPage.goto(url+'/auth-setup-qa.html');
+    await setupPage.locator('[name=password]').fill(backend.password);await setupPage.locator('[name=confirm]').fill(backend.password);
+    await setupPage.locator('#setup button').click();await setupPage.locator('#result').waitFor({state:'visible'});
+    const setupCode=await setupPage.locator('#code').inputValue();assert.ok(!setupCode.includes(backend.password));
+    let configured;require('node:vm').runInNewContext(setupCode+';configurarAccesoDevnex();',{PropertiesService:{getScriptProperties:()=>({setProperties:p=>configured=p})},CacheService:{getScriptCache:()=>({remove(){}})}});
+    assert.equal(configured.DEVNEX_AUTH_VERIFIER,backend.properties.DEVNEX_AUTH_VERIFIER);assert.equal(configured.DEVNEX_OWNER_KEY,ownerKey);await setupPage.close();
     const page = await context.newPage(); page.on('pageerror', e => errors.push(e.message));
     await page.goto(url);
+    await page.evaluate(()=>{localStorage.setItem('devnex.auth','old-unverified-user');localStorage.setItem('devnex.ownerKey','old-unverified-key');});
+    await page.reload();assert.equal(await page.locator('#appShell').isVisible(),false);
+    assert.equal(await page.evaluate(()=>localStorage.getItem('devnex.ownerKey')),null);
     for (const [width, height] of [[320,568],[375,667],[390,844],[768,1024],[1366,768],[1920,1080],[812,375]]) {
       await page.setViewportSize({ width, height });
       await noOverflow(page, `login ${width}x${height}`);
@@ -84,7 +93,15 @@ async function mockRemote(context) {
       if (width === 1366 || width === 390) await screenshot(page, `login-${width}`);
     }
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.locator('[name=user]').fill('QA');
+    await page.locator('[name=user]').fill('other@gmail.com');
+    await page.locator('#loginForm button').click();await visible(page,'.toast.error');
+    assert.equal(await page.locator('#appShell').isVisible(),false);
+    await page.locator('[name=user]').fill('elkin56ty@gmail.com');
+    await page.locator('[name=password]').fill('incorrect-password');
+    await page.locator('#loginForm button').click();
+    await page.waitForFunction(()=>!document.querySelector('#loginForm button').disabled);
+    assert.equal(await page.locator('#appShell').isVisible(),false);
+    await page.locator('[name=password]').fill(backend.password);
     await page.locator('#loginForm button').click();
     await visible(page, '#appShell');
     await page.waitForFunction(() => DevnexApp.state.projects.length === 1);
@@ -93,8 +110,7 @@ async function mockRemote(context) {
     }
     await page.setViewportSize({ width: 390, height: 844 });
     await page.locator('.side-nav [data-view-link=settings]').click();
-    await page.locator('#pairingKey').fill(ownerKey);
-    await page.locator('#pairDeviceForm button').click();
+    assert.equal(await page.locator('#pairDeviceForm').count(),0,'login must authorize notifications without a pairing form');
     await page.waitForFunction(()=>!!localStorage.getItem('devnex.ownerKey'));
     await page.locator('.side-nav [data-view-link=projects]').click();
     await visible(page, '[data-action=toggle]');
@@ -142,6 +158,21 @@ async function mockRemote(context) {
     assert.equal(model.normalize(clientRecord()).deadline_at, deadline);
     rejectWrites = false;
     await page.locator('#cancelDialog').click();
+    // Updates render before a slow response, and a rejected deletion restores the row.
+    delayWrites=900;
+    await page.locator('[data-action=edit]').click();
+    await page.locator('#projectAmountInput').fill('2000000');
+    await page.locator('#projectForm button[type=submit]').click();
+    assert.equal(await page.locator('#projectsTableBody tr').getAttribute('aria-busy'),'true');
+    assert.match(await page.locator('#projectsTableBody').textContent(),/2\.000\.000/);
+    await page.waitForFunction(()=>!document.querySelector('#projectDialog').open);
+    rejectWrites=true;page.once('dialog',dialog=>dialog.accept());
+    await page.locator('[data-action=delete]').click();
+    assert.equal(await page.locator('#projectsTableBody [data-action=edit]').count(),0);
+    await page.evaluate(()=>DevnexProjects.reload());
+    assert.equal(await page.locator('#projectsTableBody [data-action=edit]').count(),0,'a refresh must not resurrect a pending deletion');
+    await visible(page,'#projectsTableBody [data-action=edit]');
+    rejectWrites=false;delayWrites=0;
     await page.setViewportSize({width:1366,height:768}); await screenshot(page, 'projects-desktop');
 
     // Link an owner device and create an encrypted recurring payment through the UI.
@@ -160,6 +191,24 @@ async function mockRemote(context) {
     assert.ok(paymentRecord); assert.equal(paymentRecord.amount,0);
     assert.ok(!paymentRecord.message.includes('Cliente mensual QA'));
     await page.reload();await visible(page,'.payment-card');
+    // Payment creation and deletion are immediate while failures retain the editable form.
+    delayWrites=900;rejectWrites=true;
+    await page.locator('#newPayment').click();
+    await page.locator('#paymentForm [name=client]').fill('Pago que debe revertirse');
+    await page.locator('#paymentForm [name=amount]').fill('3500000');
+    await page.locator('#paymentForm [type=submit]').click();
+    assert.equal(await page.locator('.payment-card[aria-busy=true]').count(),1);
+    await page.waitForFunction(()=>!document.querySelector('#paymentForm [type=submit]').disabled);
+    assert.equal(await page.locator('.payment-card').count(),1);
+    assert.equal(await page.locator('#paymentDialog').evaluate(el=>el.open),true);
+    await page.locator('#paymentDialog [data-close-payment]').first().click();
+    page.once('dialog',dialog=>dialog.accept());
+    await page.locator('[data-payment-action=delete]').click();
+    assert.equal(await page.locator('.payment-card').count(),0);
+    await page.locator('#refreshPayments').click();
+    assert.equal(await page.locator('.payment-card').count(),0,'a refresh must not resurrect a pending payment deletion');
+    await visible(page,'.payment-card');
+    rejectWrites=false;delayWrites=0;
     await screenshot(page,'payments-mobile');
     for(const [width,height] of [[320,568],[390,844],[768,1024],[1366,768]]) {
       await page.setViewportSize({width,height});await noOverflow(page,`payments ${width}`);
@@ -255,25 +304,29 @@ async function mockRemote(context) {
       const buffer = await response.body(); const size = Number(icon.sizes.split('x')[0]);
       assert.equal(buffer.readUInt32BE(16),size); assert.equal(buffer.readUInt32BE(20),size);
     }
-    assert.ok((await pwa.evaluate(async () => (await caches.open('devnex-pwa-v9')).keys().then(v=>v.length))) >= 25);
+    assert.ok((await pwa.evaluate(async () => (await caches.open('devnex-pwa-v10')).keys().then(v=>v.length))) >= 25);
     // Permission and encrypted device registration without sending to a real push endpoint.
     await pwaContext.grantPermissions(['notifications']);
-    await pwa.evaluate(({ownerKey,publicKey})=>{
-      localStorage.setItem('devnex.auth','QA');localStorage.setItem('devnex.ownerKey',ownerKey);
+    const pwaSession=apiResponse('POST',{action:'login',email:'elkin56ty@gmail.com',proof:backend.proof});
+    await pwa.evaluate(({session,publicKey})=>{
+      localStorage.setItem('devnex.session.v1',JSON.stringify({token:session.session_token,expiresAt:session.expires_at}));
       window.__shownNotifications=[];
       const subscription={endpoint:'https://fcm.googleapis.com/test-browser',options:{applicationServerKey:DevnexPrivateStore.bytes(publicKey)},toJSON:()=>({endpoint:'https://fcm.googleapis.com/test-browser',keys:{p256dh:'test-key',auth:'test-auth'}}),unsubscribe:async()=>true};
       PushManager.prototype.getSubscription=async()=>null;
       PushManager.prototype.subscribe=async()=>subscription;
       ServiceWorkerRegistration.prototype.showNotification=async(title,options)=>window.__shownNotifications.push({title,...options});
       DevnexAuth.guard();
-    },{ownerKey,publicKey:publicConfig.vapidPublicKey});
+    },{session:pwaSession,publicKey:publicConfig.vapidPublicKey});
+    await pwa.waitForFunction(()=>DevnexAuth.isLoggedIn());
     await pwa.locator('.side-nav [data-view-link=settings]').click();
     await pwa.locator('#enablePush').click();
     await pwa.waitForFunction(()=>!!localStorage.getItem('devnex.pushId'));
     assert.ok(records.some(p=>p.project_id.startsWith('__DEVNEX_PUSH__')));
     assert.ok(!records.find(p=>p.project_id.startsWith('__DEVNEX_PUSH__')).message.includes('fcm.googleapis.com'));
     assert.equal(await pwa.evaluate(()=>window.__shownNotifications[0].title),'DEVNEX · Ya estamos conectados');
-    await pwa.evaluate(()=>localStorage.removeItem('devnex.auth'));
+    await pwa.locator('.side-nav [data-view-link=settings]').click();
+    await pwa.locator('[data-view=settings] .logout-button').click();
+    assert.equal(await pwa.evaluate(()=>localStorage.getItem('devnex.ownerKey')),null);
     await pwaContext.setOffline(true); await pwa.reload();
     await visible(pwa, '#loginForm'); await noOverflow(pwa, 'offline PWA');
     await pwaContext.close(); await context.close();

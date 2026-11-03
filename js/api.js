@@ -2,7 +2,10 @@ window.DevnexAPI = (() => {
   const app = window.DevnexApp;
 
   const normalizeProject = DevnexProjectState.normalize;
-  let snapshot=null,snapshotAt=0,pendingRead=null,revision=0;
+  let snapshot=null,snapshotAt=0,pendingRead=null,revision=0,knownRecords=null;
+  const prime=records=>{revision++;snapshot=knownRecords=records;snapshotAt=Date.now();pendingRead=null;};
+  const clearSession=()=>{revision++;snapshot=knownRecords=null;pendingRead=null;};
+  const acceptRecord=record=>{if(knownRecords){knownRecords=[record,...knownRecords.filter(r=>r.project_id!==record.project_id)];snapshot=knownRecords;snapshotAt=Date.now();}};
   let channel;
   try{channel=new BroadcastChannel('devnex.control.v2');}catch(_){}
   const invalidate=()=>{revision++;snapshot=null;pendingRead=null;};
@@ -33,6 +36,9 @@ window.DevnexAPI = (() => {
       return localRequest(action, payload);
     }
 
+    const sessionToken=window.DevnexAuth?.token();
+    if(window.DevnexAuth&&!sessionToken)throw new Error('Inicia sesión para consultar o guardar cambios.');
+    if(sessionToken){payload={...payload,session_token:sessionToken};method='POST';}
     const options = { method, cache: "no-store", signal: AbortSignal.timeout(15000) };
 
     let url = app.apiUrl;
@@ -48,6 +54,7 @@ window.DevnexAPI = (() => {
     }
 
     const response = await fetch(url, options);
+    if(sessionToken&&window.DevnexAuth?.token()!==sessionToken)throw new Error('La sesión cambió durante la operación.');
     const text = await response.text();
     let data = {};
 
@@ -58,6 +65,7 @@ window.DevnexAPI = (() => {
     }
 
     if (!response.ok || data.error || data.success === false) {
+      if(data.code==='AUTH_REQUIRED')window.DevnexAuth?.expire();
       throw new Error(data.message || data.error || "No se pudo completar la solicitud.");
     }
 
@@ -119,50 +127,55 @@ window.DevnexAPI = (() => {
     const operation=request('get',{t:Date.now()},'GET').then(data=>{
       const source=Array.isArray(data)?data:data.projects||data.data||data.rows||[];
       if(!Array.isArray(source))throw new Error('La API no devolvió una lista de registros.');
-      if(startedAtRevision===revision){snapshot=source;snapshotAt=Date.now();}
+      if(startedAtRevision===revision){snapshot=knownRecords=source;snapshotAt=Date.now();}
       return source;
     }).finally(()=>{if(pendingRead===operation)pendingRead=null;});
     pendingRead=operation;return operation;
   };
   const saveRecord = async (record) => {
     if (!String(record.project_id).startsWith("__DEVNEX_")) throw new Error("Registro interno inválido.");
-    const existing = (await getRecords()).some(p => p.project_id === record.project_id);
-    await mutate(existing ? "update" : "create", record);
-    const saved = (await getRecords({fresh:true})).find(p => p.project_id === record.project_id);
-    if (!saved || saved.message !== record.message) throw new Error("La API no confirmó el registro guardado.");
-    return saved;
+    const existing = (knownRecords||await getRecords()).some(p => p.project_id === record.project_id);
+    const result=await mutate(existing ? "update" : "create", record);
+    const saved=result.verified===true&&result.project?result.project:(await getRecords({fresh:true})).find(p => p.project_id === record.project_id);
+    if (!saved || saved.project_id!==record.project_id || saved.message !== record.message || Number(saved.amount)!==Number(record.amount) || saved.status!==record.status) throw new Error("La API no confirmó el registro guardado.");
+    acceptRecord(saved);return saved;
   };
 
   const createProject = async (project) => {
     const normalized = normalizeProject(project);
     if (normalized.project_id.startsWith("__DEVNEX_")) throw new Error("Ese prefijo está reservado para registros internos.");
-    await mutate("create", DevnexProjectState.serialize(normalized));
-    return verifySaved(normalized);
+    const result=await mutate("create", DevnexProjectState.serialize(normalized));
+    return verifySaved(normalized,result);
   };
 
   const updateProject = async (project) => {
     const normalized = normalizeProject(project);
-    await mutate("update", DevnexProjectState.serialize(normalized));
-    return verifySaved(normalized);
+    const result=await mutate("update", DevnexProjectState.serialize(normalized));
+    return verifySaved(normalized,result);
   };
 
-  // Read back the record: never claim success if the backend dropped a schedule.
-  const verifySaved = async (expected) => {
-    const saved = (await getProjects({fresh:true})).find(p => p.project_id === expected.project_id);
-    if (!saved || saved.status !== expected.status || saved.deadline_at !== expected.deadline_at || saved.message !== expected.message || saved.amount !== expected.amount || (expected.status === "warning" && (saved.warning_position !== expected.warning_position || saved.warning_top !== expected.warning_top || saved.warning_hours !== expected.warning_hours))) {
+  // Verify the persisted row returned by the server; older backends need a readback.
+  const verifySaved = async (expected,result={}) => {
+    const saved=result.verified===true&&result.project?normalizeProject(result.project):(await getProjects({fresh:true})).find(p => p.project_id === expected.project_id);
+    if (!saved || saved.project_id!==expected.project_id || saved.status !== expected.status || saved.deadline_at !== expected.deadline_at || saved.message !== expected.message || saved.amount !== expected.amount || (expected.status === "warning" && (saved.warning_position !== expected.warning_position || saved.warning_top !== expected.warning_top || saved.warning_hours !== expected.warning_hours))) {
       throw new Error("La API no confirmó los cambios. Actualiza los datos antes de volver a intentar.");
     }
+    acceptRecord(DevnexProjectState.serialize(saved));
     try{channel?.postMessage({type:'project-changed',project_id:saved.project_id});}catch(_){}
     return saved;
   };
 
   const deleteProject = async (projectId) => {
-    await mutate("delete", { project_id: projectId });
+    const result=await mutate("delete", { project_id: projectId });
+    if(result.verified===true&&result.deleted_id!==projectId)throw new Error('La API no confirmó la eliminación.');
+    if(knownRecords){knownRecords=knownRecords.filter(r=>r.project_id!==projectId);snapshot=knownRecords;snapshotAt=Date.now();}
     try{channel?.postMessage({type:'project-changed',project_id:projectId});}catch(_){}
     return true;
   };
 
   return {
+    prime,
+    clearSession,
     getProjects,
     createProject,
     updateProject,

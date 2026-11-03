@@ -2,6 +2,10 @@
 
 Panel estático para gestionar proyectos mediante la API existente de Google Apps Script. No necesita compilación.
 
+## Acceso con tu cuenta
+
+El acceso seguro requiere actualizar una vez Google Apps Script siguiendo [backend/README.md](backend/README.md). La cuenta autorizada es `elkin56ty@gmail.com`. Iniciar sesión habilita automáticamente la agenda, las conexiones y las notificaciones; no se pega ninguna clave en la PWA. La contraseña se configura localmente con `npm run setup:auth`.
+
 ## Avisar antes de suspender
 
 1. En **Proyectos**, edita un proyecto o toca el icono de reloj.
@@ -16,7 +20,7 @@ Editar el mensaje o la posición conserva el vencimiento. Cambiar las horas o ma
 
 ## Conectar un proyecto escribiendo su nombre
 
-Con el dispositivo vinculado en Ajustes, entra en **Proyectos → Nuevo** y escribe el repositorio de tu cuenta `devnnex`. Estas dos entradas conectan el mismo proyecto:
+Con tu sesión iniciada, entra en **Proyectos → Nuevo** y escribe el repositorio de tu cuenta `devnnex`. Estas dos entradas conectan el mismo proyecto:
 
 ```text
 DON-PIEROS-PIZZA-BCA.COM
@@ -35,7 +39,7 @@ El LED junto al nombre muestra:
 
 El administrador envía una señal como máximo cada 15 segundos y el panel la consulta cada 4 segundos mientras miras Proyectos. Si ambas pestañas comparten origen, la señal avisa al panel de inmediato. Un LED no asegura que haya usuarios trabajando: señala la ejecución del control administrativo. En el formulario puedes ver la última confirmación y **Abrir administrador** para comprobarla.
 
-**Rapidez:** navegar y mostrar el estado de una edición responde inmediatamente. Las escrituras se confirman contra el servidor, con indicación de guardado por fila y sin una pantalla de carga que bloquee todo el panel. Una actualización de proyecto conectado usa un POST y una lectura de verificación; las vistas y la conexión comparten esa lectura. Si falla el guardado, se restaura el estado anterior. Los tiempos de red siguen dependiendo de Apps Script y del dispositivo.
+**Rapidez:** navegar y mostrar el estado de una edición responde inmediatamente. Las escrituras se confirman contra el servidor, con indicación de guardado por fila y sin una pantalla de carga que bloquee todo el panel. Con el backend actualizado, un guardado usa un solo POST que devuelve la fila persistida y confirmada; login, vistas y conexión comparten la información. Los backends anteriores requieren una lectura adicional de verificación. Si falla el guardado, se restaura el estado anterior. Los tiempos de red siguen dependiendo de Apps Script y del dispositivo.
 
 **Primera instalación:** no se puede prometer que el LED pase a verde en segundos cuando el script todavía no está instalado. La cola de Actions se revisa aproximadamente cada cinco minutos y después GitHub Pages debe publicar. No se marcan conexiones ficticias como listas. Una vez instalado el control y abierto `admin.html`, no se espera al cron para detectar la señal ni para entregar bloqueos.
 
@@ -69,7 +73,7 @@ La API pública actual conserva `project_id`, `status`, `amount` y `message`. Pa
 
 El tiempo se calcula contra ese vencimiento absoluto; no se reinicia al cargar ni depende de un contador del navegador. En desconexión se conserva el último estado conocido en cada cliente y el contador sigue venciendo. Un desbloqueo remoto requiere que el cliente recupere conexión. La hora del dispositivo debe ser correcta. El control visual en el navegador conserva el alcance de la integración anterior; el control de acceso a datos del servidor corresponde al backend de cada sistema.
 
-Después de una escritura, el panel vuelve a leer el registro y verifica los cambios antes de confirmar éxito. No requiere cambiar el Apps Script. Las operaciones remotas reales deben mantener el contrato de los cuatro campos anteriores.
+Después de una escritura, el panel verifica la fila persistida que devuelve el servidor antes de confirmar éxito. La autenticación segura y la confirmación en una sola respuesta requieren publicar `backend/Code.gs`. Las operaciones remotas reales mantienen el contrato de los cuatro campos anteriores.
 
 ## PWA y móviles
 
@@ -118,11 +122,11 @@ La primera apertura de la PWA instalada muestra una invitación. El permiso del 
 
 Una vez en cada dispositivo:
 
-1. Copia la clave de `.private/CLAVE-VINCULACION.txt` a **Ajustes → Clave de vinculación**.
-2. Toca **Vincular este dispositivo** y luego **Activar notificaciones**.
+1. Inicia sesión con tu correo y contraseña de DEVNEX.
+2. En **Ajustes**, toca **Activar notificaciones**.
 3. Acepta el permiso del navegador. **Probar en este dispositivo** muestra un aviso local de ejemplo.
 
-La clave se recuerda en ese navegador. La instalación de una PWA puede usar almacenamiento separado del navegador: si la PWA instalada aún no está vinculada, pega la clave allí. La clave abre la agenda cifrada y autoriza registros de notificaciones; no es la contraseña del cliente. Si borras los datos del navegador, vuelve a vincular.
+La sesión se recuerda durante siete días y se verifica con el servidor al reabrir. La instalación de una PWA puede usar almacenamiento separado del navegador: inicia sesión dentro de la PWA si hace falta. La clave de datos se obtiene automáticamente tras autenticarte. Si borras los datos del navegador, inicia sesión y vuelve a activar sus notificaciones.
 
 Se envía un aviso por dispositivo y evento: proyecto vencido/bloqueado, pago por cobrar y aviso anticipado cuando se configuró. Los recibos de envío evitan repetirlo cada cinco minutos. Una suscripción caducada (404/410) se retira. En **Ajustes → Desactivar** puedes cancelar los avisos de ese dispositivo. El importe lleva formato COP. Icono y contenido son DEVNEX; los colores y la disposición final los decide Android/iOS.
 

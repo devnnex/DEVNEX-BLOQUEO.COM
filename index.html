@@ -41,9 +41,9 @@
         </div>
         <form class="premium-form" id="loginForm">
           <label>
-            <span>Usuario</span>
+            <span>Correo electrónico</span>
             <i class="fa-solid fa-user"></i>
-            <input type="text" name="user" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="Tu usuario" required>
+            <input type="email" name="user" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="elkin56ty@gmail.com" required>
           </label>
           <label>
             <span>Contraseña</span>
@@ -288,11 +288,7 @@
         <section class="settings-grid">
           <article class="panel glass-panel notification-settings">
             <div class="panel-heading"><div><p class="eyebrow">Avisos en tu teléfono</p><h3>Notificaciones y agenda privada</h3></div><span class="panel-badge" id="pushBadge">Sin activar</span></div>
-            <p class="form-help" id="pushStatus" role="status">Vincula este dispositivo para acceder a tu agenda y recibir avisos de cobros y proyectos vencidos.</p>
-            <form id="pairDeviceForm" class="premium-form compact">
-              <label><span>Clave de vinculación DEVNEX</span><input id="pairingKey" type="password" autocomplete="off" spellcheck="false" placeholder="Pega tu clave privada" required></label>
-              <button class="button ghost" type="submit">Vincular este dispositivo</button>
-            </form>
+            <p class="form-help" id="pushStatus" role="status">Inicia sesión con tu cuenta y activa las notificaciones en este dispositivo.</p>
             <div class="notification-actions"><button class="button primary" id="enablePush" type="button">Activar notificaciones</button><button class="button ghost" id="testPush" type="button" hidden>Probar en este dispositivo</button><button class="button ghost" id="disablePush" type="button" hidden>Desactivar</button></div>
             <p class="form-help">Recibirás avisos al vencer un proyecto, al llegar una fecha de pago y, si lo eliges, antes de un cobro. La revisión se ejecuta aproximadamente cada 5 minutos; puede demorarse. En iPhone instala la PWA antes de activar los avisos.</p>
           </article>
