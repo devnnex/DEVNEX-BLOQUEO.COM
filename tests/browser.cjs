@@ -255,7 +255,7 @@ async function mockRemote(context) {
       const buffer = await response.body(); const size = Number(icon.sizes.split('x')[0]);
       assert.equal(buffer.readUInt32BE(16),size); assert.equal(buffer.readUInt32BE(20),size);
     }
-    assert.ok((await pwa.evaluate(async () => (await caches.open('devnex-pwa-v6')).keys().then(v=>v.length))) >= 25);
+    assert.ok((await pwa.evaluate(async () => (await caches.open('devnex-pwa-v7')).keys().then(v=>v.length))) >= 25);
     // Permission and encrypted device registration without sending to a real push endpoint.
     await pwaContext.grantPermissions(['notifications']);
     await pwa.evaluate(({ownerKey,publicKey})=>{

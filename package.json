@@ -3,7 +3,7 @@
   "private": true,
   "version": "2.0.0",
   "scripts": {
-    "test": "node --test tests/*.test.cjs && node tests/browser.cjs",
+    "test": "node --test tests/*.test.cjs && node tests/browser.cjs && node tests/forms.cjs",
     "notify": "node scripts/send-notifications.cjs",
     "setup:push": "node scripts/setup-push.cjs",
     "connect": "node scripts/connect-repositories.cjs",

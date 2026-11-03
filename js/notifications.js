@@ -58,7 +58,7 @@ window.DevnexNotifications = (() => {
       subscription=subscription||await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:DevnexPrivateStore.bytes(settings.vapidPublicKey)});
       await saveSubscription(subscription);await refresh();$('notificationDialog').close();
       DevnexUI.showToast('Notificaciones activadas en este dispositivo.');
-      await reg.showNotification('DEVNEX · Ya estamos conectados',{body:'Recibirás tus cobros y vencimientos aquí. Ejemplo: $ 250.000 COP.',icon:'./assets/icons/favicon-192.png',badge:'./assets/icons/notification-badge.png',tag:'devnex-welcome',data:{url:'./index.html#payments'}});
+      await reg.showNotification('DEVNEX · Ya estamos conectados',{body:'Recibirás tus cobros y vencimientos aquí. Ejemplo: $ 250.000 COP.',icon:'./assets/icons/favicon-192.png?v=3',badge:'./assets/icons/notification-badge.png?v=3',tag:'devnex-welcome',data:{url:'./index.html#payments'}});
     }catch(error){status(error.message,true);}finally{$('enablePush').disabled=$('promptEnablePush').disabled=false;}
   }
   async function maybePrompt() {
@@ -76,7 +76,7 @@ window.DevnexNotifications = (() => {
     $('enablePush').onclick=$('promptEnablePush').onclick=enable;
     $('laterPush').onclick=()=>{localStorage.setItem('devnex.pushLater',String(Date.now()));$('notificationDialog').close();};
     $('testPush').onclick=async()=>{
-      try {await(await ready()).showNotification('DEVNEX · Próximo cobro',{body:'Cliente de ejemplo · $ 250.000 COP. Revisa tu agenda de pagos.',icon:'./assets/icons/favicon-192.png',badge:'./assets/icons/notification-badge.png',tag:'devnex-test',data:{url:'./index.html#payments'}});}
+      try {await(await ready()).showNotification('DEVNEX · Próximo cobro',{body:'Cliente de ejemplo · $ 250.000 COP. Revisa tu agenda de pagos.',icon:'./assets/icons/favicon-192.png?v=3',badge:'./assets/icons/notification-badge.png?v=3',tag:'devnex-test',data:{url:'./index.html#payments'}});}
       catch(error){status(error.message,true);}
     };
     $('disablePush').onclick=async()=>{

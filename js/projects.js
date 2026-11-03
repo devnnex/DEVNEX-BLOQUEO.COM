@@ -100,10 +100,8 @@ window.DevnexProjects = (() => {
   };
 
   const renderCurrentProject = (projects) => {
-    const id = app.projectId || "DEVNEX-BLOQUEO-PROYECTOS";
-    const project = projects.find((item) => item.project_id === id);
-    setText("currentProjectId", id);
-    setText("currentProjectStatus", project?.status || "No registrado");
+    setText("currentProjectId", "Avisos y bloqueos privados");
+    setText("currentProjectStatus", "Solo en admin.html");
     // The owner console must remain available to manage and unlock clients.
   };
 

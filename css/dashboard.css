@@ -61,6 +61,7 @@
 
 .stat-card {
   display: grid;
+  min-width: 0;
   gap: 8px;
   min-height: 172px;
   padding: 18px;
@@ -74,7 +75,10 @@
 
 .stat-card strong {
   font-size: clamp(1.9rem, 3vw, 3.1rem);
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
+#statAmount { font-size: clamp(1.2rem,2.3vw,2.7rem); font-variant-numeric: tabular-nums; }
 
 .stat-icon.violet {
   background: linear-gradient(135deg, #7c3aed, #c084fc);
@@ -310,11 +314,14 @@
   width: min(680px, calc(100vw - 28px));
   padding: 0;
   color: var(--white);
+  max-width: calc(100vw - 24px);
+  background: var(--surface-2);
 }
 
 .project-dialog::backdrop {
   background: rgba(2, 2, 7, 0.62);
   backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
 }
 
 .project-dialog .premium-form {
@@ -331,7 +338,8 @@
 
 .form-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  min-width: 0;
+  grid-template-columns: repeat(2,minmax(0,1fr));
   gap: 14px;
 }
 
@@ -342,7 +350,11 @@
   gap: 18px;
   padding: 16px 0;
   border-top: 1px solid var(--line);
+  min-width: 0;
 }
+.setting-row>div { min-width: 0; }
+.setting-row:has(.range) { flex-direction: column; align-items: stretch; }
+.setting-row .range { width: 100%; max-width: 100%; margin-inline: 0; }
 
 .setting-row:first-of-type {
   border-top: 0;
@@ -357,6 +369,7 @@
   position: relative;
   width: 58px;
   height: 34px;
+  flex: 0 0 58px;
 }
 
 .switch input {

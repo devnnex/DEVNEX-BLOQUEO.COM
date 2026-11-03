@@ -13,7 +13,7 @@ test('push handler shows a branded COP message with app-scoped navigation',async
   await pending;
   assert.equal(env.shown[0].title,'DEVNEX · Pago por cobrar');
   assert.match(env.shown[0].body,/COP/);
-  assert.equal(env.shown[0].icon,'https://example.com/DEVNEX/assets/icons/favicon-192.png');
+  assert.equal(env.shown[0].icon,'https://example.com/DEVNEX/assets/icons/favicon-192.png?v=3');
   assert.equal(env.shown[0].data.url,'https://example.com/DEVNEX/index.html#payments');
   let closed=false;
   env.listeners.notificationclick({notification:{close:()=>closed=true,data:{url:'https://malicious.example/'}},waitUntil:value=>pending=value});

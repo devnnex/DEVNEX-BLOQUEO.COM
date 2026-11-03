@@ -75,6 +75,10 @@ Después de una escritura, el panel vuelve a leer el registro y verifica los cam
 
 Abre sobre HTTPS o localhost. Los iconos PNG de 48, 180, 192 y 512 px, más el icono maskable, usan el símbolo geométrico violeta inspirado en la referencia DEVNEX. El manifest permite instalación en modo independiente. En **Ajustes → Instalar DEVNEX** aparece la instalación cuando el navegador la ofrece; en Safari usa **Compartir → Añadir a pantalla de inicio**.
 
+El logo actualizado se entrega en `assets/logos/devnex-mark.png` (1254 × 1254 px), con los iconos derivados de esa misma imagen. Los enlaces versionados renuevan el icono anterior; el sistema operativo puede conservar temporalmente el icono de una PWA ya instalada. Los textos y campos del panel están en español, con etiquetas de uso cotidiano.
+
+Los formularios se verifican con Chromium y WebKit en anchos de 280 a 1366 px, también en horizontal. Las pruebas abren registro y edición de proyectos, pagos, fecha/hora, frecuencias, intervalos, ajustes, vinculación y notificaciones. Comprueban el ancho de cada input/select, el ancho interno de los diálogos y el scroll horizontal con nombres e importes extensos; no se limita la comprobación a ocultar el desbordamiento de la página.
+
 Los inputs usan 16 px para evitar el zoom automático en iPhone, manteniendo el zoom manual accesible. El login permite desplazarse con el teclado abierto; en móviles hay navegación inferior y tarjetas para los proyectos. La interfaz se puede abrir sin conexión después de una primera visita, pero consultar o guardar proyectos requiere internet.
 
 El service worker almacena solo archivos de la interfaz, nunca respuestas de la API. Al publicar cambios futuros, incrementa `CACHE_NAME` en `sw.js`.

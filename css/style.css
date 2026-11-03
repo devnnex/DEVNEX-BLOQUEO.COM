@@ -132,6 +132,7 @@ button {
 .brand-copy small {
   display: block;
 }
+.brand-copy { min-width: 0; }
 
 .brand-copy small,
 .eyebrow,
@@ -408,6 +409,8 @@ body.auth-mode {
 
 .premium-form {
   display: grid;
+  min-width: 0;
+  max-width: 100%;
   gap: 14px;
   margin-top: 26px;
 }
@@ -420,6 +423,8 @@ body.auth-mode {
   position: relative;
   display: grid;
   gap: 8px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .premium-form label span {
@@ -445,7 +450,14 @@ body.auth-mode {
   background: rgba(255, 255, 255, 0.08);
 }
 
-input,select,textarea { min-width: 0; max-width: 100%; font-size: 16px; color: inherit; }
+input,select,textarea { box-sizing: border-box; min-width: 0; min-inline-size: 0; max-width: 100%; max-inline-size: 100%; font-size: 16px; color: inherit; }
+.premium-form input:not([type="checkbox"]):not([type="range"]),.premium-form select,.premium-form textarea { inline-size: 100%; }
+.premium-form label>span,.warning-fields legend { overflow-wrap: anywhere; }
+.premium-form select { padding-right: 30px; text-overflow: ellipsis; white-space: nowrap; }
+input[type="datetime-local"],input[type="date"],input[type="time"] { display: block; width: 100%; min-width: 0; max-width: 100%; min-inline-size: 0; padding-inline: 12px; overflow: hidden; text-overflow: ellipsis; }
+input::-webkit-date-and-time-value { min-width: 0; text-align: start; }
+input::-webkit-datetime-edit { min-width: 0; padding: 0; overflow: hidden; }
+input::-webkit-calendar-picker-indicator { flex: 0 0 auto; margin-left: 4px; }
 select option { background: var(--bg); color: inherit; }
 button,a { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
 button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible { outline: 3px solid var(--lilac); outline-offset: 3px; }
@@ -461,7 +473,7 @@ button:disabled { cursor: wait; opacity: .5; }
 .premium-form .checkbox-label { display: flex; align-items: center; gap: 10px; }
 .checkbox-label input { min-height: 24px; width: 24px; accent-color: var(--violet); }
 .status-badge.warning { color: #fde68a; background: #f59e0b22; }
-.deadline-label { display: block; margin-top: 6px; font-size: 11px; color: var(--muted); white-space: nowrap; }
+.deadline-label { display: block; margin-top: 6px; font-size: 11px; color: var(--muted); white-space: normal; overflow-wrap: anywhere; }
 .project-dialog { max-height: calc(100dvh - 24px); overflow-y: auto; overscroll-behavior: contain; border-radius: 18px; }
 .toast { max-width: min(440px,calc(100vw - 24px)); overflow-wrap: anywhere; }
 .toast-stack { pointer-events: none; }

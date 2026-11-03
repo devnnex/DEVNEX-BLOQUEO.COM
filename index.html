@@ -11,8 +11,8 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="description" content="DEVNEX Control: recordatorios de pago, plazos y gestión de proyectos.">
   <title>DEVNEX Control</title>
-  <link rel="icon" type="image/png" href="assets/icons/favicon.png">
-  <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
+  <link rel="icon" type="image/png" href="assets/icons/favicon.png?v=3">
+  <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png?v=3">
   <link rel="manifest" href="manifest.json">
   <link rel="preconnect" href="https://cdnjs.cloudflare.com">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
@@ -28,10 +28,10 @@
     <main class="login-layout">
       <section class="login-card glass-panel">
         <a class="brand login-brand" href="#login">
-          <img class="brand-mark" src="assets/logos/devnex-mark.svg" width="44" height="44" alt="">
+          <img class="brand-mark" src="assets/icons/favicon-192.png?v=3" width="44" height="44" alt="">
           <span class="brand-copy">
             <strong>Devnex</strong>
-            <small>Control OS</small>
+            <small>Control de proyectos</small>
           </span>
         </a>
         <div class="login-copy">
@@ -46,13 +46,13 @@
             <input type="text" name="user" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="Tu usuario" required>
           </label>
           <label>
-            <span>Clave</span>
+            <span>Contraseña</span>
             <i class="fa-solid fa-fingerprint"></i>
             <input type="password" name="password" autocomplete="current-password" placeholder="••••••••" required>
           </label>
           <button class="button primary wide" type="submit">
             <i class="fa-solid fa-arrow-right-to-bracket"></i>
-            Iniciar sesion
+            Iniciar sesión
           </button>
         </form>
         <div class="login-meta">
@@ -75,14 +75,14 @@
   <div class="app-shell" id="appShell" hidden>
     <aside class="sidebar glass-panel" id="sidebar">
       <a class="brand" href="#dashboard" aria-label="Devnex Control">
-        <img class="brand-mark" src="assets/logos/devnex-mark.svg" width="44" height="44" alt="">
+        <img class="brand-mark" src="assets/icons/favicon-192.png?v=3" width="44" height="44" alt="">
         <span class="brand-copy">
           <strong>Devnex</strong>
-          <small>Control OS</small>
+          <small>Control de proyectos</small>
         </span>
       </a>
       <nav class="side-nav" aria-label="Navegacion principal">
-        <a class="nav-link active" href="#dashboard" data-view-link="dashboard"><i class="fa-solid fa-chart-pie"></i><span>Dashboard</span></a>
+        <a class="nav-link active" href="#dashboard" data-view-link="dashboard"><i class="fa-solid fa-chart-pie"></i><span>Inicio</span></a>
         <a class="nav-link" href="#projects" data-view-link="projects"><i class="fa-solid fa-layer-group"></i><span>Proyectos</span></a>
         <a class="nav-link" href="#payments" data-view-link="payments"><i class="fa-solid fa-calendar-check"></i><span>Pagos</span></a>
         <a class="nav-link" href="#settings" data-view-link="settings"><i class="fa-solid fa-sliders"></i><span>Ajustes</span></a>
@@ -116,7 +116,7 @@
             <button class="icon-button" id="refreshData" type="button" aria-label="Actualizar" data-tooltip="Actualizar">
               <i class="fa-solid fa-rotate"></i>
             </button>
-            <button class="avatar-button logout-button" type="button" aria-label="Cerrar sesion">
+            <button class="avatar-button logout-button" type="button" aria-label="Cerrar sesión">
               <span>DX</span>
             </button>
           </div>
@@ -164,10 +164,10 @@
           <article class="panel glass-panel chart-panel">
             <div class="panel-heading">
               <div>
-                <p class="eyebrow">Status</p>
+                <p class="eyebrow">Estado</p>
                 <h3>Salud de proyectos</h3>
               </div>
-              <span class="panel-badge">Live</span>
+              <span class="panel-badge">Actualizado</span>
             </div>
             <canvas id="statusChart" height="260" aria-label="Grafica de estados"></canvas>
           </article>
@@ -175,7 +175,7 @@
           <article class="panel glass-panel chart-panel">
             <div class="panel-heading">
               <div>
-                <p class="eyebrow">Revenue Risk</p>
+                <p class="eyebrow">Cobros pendientes</p>
                 <h3>Deuda por proyecto</h3>
               </div>
               <span class="panel-badge soft">COP</span>
@@ -208,7 +208,7 @@
           <div class="topbar-actions">
             <button class="button ghost" type="button" data-refresh><i class="fa-solid fa-rotate"></i> Actualizar</button>
             <button class="button primary" id="newProjectButton" type="button"><i class="fa-solid fa-plus"></i> Nuevo</button>
-            <button class="avatar-button logout-button" type="button" aria-label="Cerrar sesion"><span>DX</span></button>
+            <button class="avatar-button logout-button" type="button" aria-label="Cerrar sesión"><span>DX</span></button>
           </div>
         </header>
 
@@ -230,7 +230,7 @@
             <table class="premium-table">
               <thead>
                 <tr>
-                  <th>project_id</th>
+                  <th>Proyecto</th>
                   <th>Estado / plazo</th>
                   <th>Deuda</th>
                   <th>Mensaje</th>
@@ -281,7 +281,7 @@
             <h1>Apariencia y cuenta</h1>
           </div>
           <div class="topbar-actions">
-            <button class="avatar-button logout-button" type="button" aria-label="Cerrar sesion"><span>DX</span></button>
+            <button class="avatar-button logout-button" type="button" aria-label="Cerrar sesión"><span>DX</span></button>
           </div>
         </header>
 
@@ -302,12 +302,12 @@
                 <p class="eyebrow">Apariencia</p>
                 <h3>Interfaz</h3>
               </div>
-              <span class="panel-badge">Premium</span>
+              <span class="panel-badge">A tu gusto</span>
             </div>
             <div class="setting-row">
               <div>
                 <strong>Modo oscuro</strong>
-                <span>Consola oscura galactica</span>
+                <span>Fondo oscuro y texto claro</span>
               </div>
               <label class="switch">
                 <input id="darkModeToggle" type="checkbox" checked>
@@ -317,7 +317,7 @@
             <div class="setting-row">
               <div>
                 <strong>Efecto de cristal</strong>
-                <span>Profundidad visual</span>
+                <span>Desenfoque del fondo</span>
               </div>
               <input class="range" id="glassRange" type="range" min="10" max="34" value="22">
             </div>
@@ -326,7 +326,7 @@
           <article class="panel glass-panel">
             <div class="panel-heading">
               <div>
-                <p class="eyebrow">Branding</p>
+                <p class="eyebrow">Tu marca</p>
                 <h3>Identidad</h3>
               </div>
             </div>
@@ -349,17 +349,17 @@
             <div class="panel-heading">
               <div>
                 <p class="eyebrow">Usuario</p>
-                <h3>Sesion</h3>
+                <h3>Sesión</h3>
               </div>
             </div>
             <div class="profile-card">
               <div class="profile-avatar">DX</div>
               <div>
                 <strong id="settingsUser">Administrador</strong>
-                <span>Owner console</span>
+                <span>Cuenta administradora</span>
               </div>
             </div>
-            <button class="button ghost" id="clearLocalData" type="button"><i class="fa-solid fa-broom"></i> Limpiar demo local</button>
+            <button class="button ghost" id="clearLocalData" type="button"><i class="fa-solid fa-broom"></i> Borrar datos de prueba</button>
           </article>
           <article class="panel glass-panel">
             <div class="panel-heading"><div><p class="eyebrow">Siempre a mano</p><h3>Instalar DEVNEX</h3></div></div>
@@ -376,7 +376,7 @@
     <form class="premium-form" id="paymentForm">
       <div class="dialog-heading"><div><p class="eyebrow">Agenda de cobros</p><h2 id="paymentDialogTitle">Agendar pago</h2></div><button class="icon-button" type="button" data-close-payment aria-label="Cerrar">×</button></div>
       <label><span>Cliente</span><input name="client" type="text" maxlength="100" placeholder="Nombre del cliente" required></label>
-      <label><span>Proyecto asociado (opcional)</span><input name="project_id" type="text" list="paymentProjectOptions" placeholder="Identificador del proyecto"><datalist id="paymentProjectOptions"></datalist></label>
+      <label><span>Proyecto asociado (opcional)</span><input name="project_id" type="text" list="paymentProjectOptions" placeholder="Nombre del proyecto"><datalist id="paymentProjectOptions"></datalist></label>
       <div class="form-grid"><label><span>Valor en pesos colombianos</span><input name="amount" type="number" min="1" step="1" inputmode="numeric" placeholder="250000" required></label><label><span>Fecha y hora · Colombia</span><input name="due_local" type="datetime-local" required></label></div>
       <div class="form-grid"><label><span>Frecuencia</span><select name="frequency"><option value="once">Pago único</option><option value="weekly">Semanal · cada 7 días</option><option value="fortnightly">Quincenal · cada 15 días</option><option value="monthly">Mensual · mismo día</option><option value="custom">Cada cierto número de días</option></select></label><label id="customIntervalLabel" hidden><span>Intervalo en días</span><input name="interval_days" type="number" min="1" max="3650" value="30" step="1"></label></div>
       <label><span>Recordatorio anticipado</span><select name="remind_before_hours"><option value="0">Solo al llegar la fecha</option><option value="1">1 hora antes</option><option value="24">1 día antes</option><option value="48">2 días antes</option><option value="168">1 semana antes</option></select></label>
@@ -386,14 +386,14 @@
     </form>
   </dialog>
   <dialog class="project-dialog glass-panel notification-dialog" id="notificationDialog" aria-labelledby="notificationTitle">
-    <div class="notification-prompt"><img src="assets/icons/favicon-192.png" alt="" width="64" height="64"><p class="eyebrow">DEVNEX te avisa</p><h2 id="notificationTitle">Tus cobros, a tiempo</h2><p>Activa las notificaciones para recibir un resumen con el cliente, el valor en COP y los proyectos cuyo plazo haya vencido, incluso con la app cerrada.</p><button class="button primary wide" type="button" id="promptEnablePush">Activar notificaciones</button><button class="button ghost wide" type="button" id="laterPush">Más tarde</button><p class="form-help" id="promptPushStatus" role="status"></p></div>
+    <div class="notification-prompt"><img src="assets/icons/favicon-192.png?v=3" alt="" width="64" height="64"><p class="eyebrow">DEVNEX te avisa</p><h2 id="notificationTitle">Tus cobros, a tiempo</h2><p>Activa las notificaciones para recibir un resumen con el cliente, el valor en COP y los proyectos cuyo plazo haya vencido, incluso con la app cerrada.</p><button class="button primary wide" type="button" id="promptEnablePush">Activar notificaciones</button><button class="button ghost wide" type="button" id="laterPush">Más tarde</button><p class="form-help" id="promptPushStatus" role="status"></p></div>
   </dialog>
   <dialog class="project-dialog glass-panel" id="projectDialog">
     <form class="premium-form" id="projectForm" method="dialog">
       <div class="dialog-heading">
         <div>
           <p class="eyebrow" id="dialogMode">Nuevo proyecto</p>
-          <h2>Registro operativo</h2>
+          <h2>Control del proyecto</h2>
         </div>
         <button class="icon-button" type="button" id="closeDialog" aria-label="Cerrar"><i class="fa-solid fa-xmark"></i></button>
       </div>
@@ -447,7 +447,7 @@
   <div class="toast-stack" id="toastStack" aria-live="polite"></div>
   <div class="screen-loader" id="screenLoader" aria-hidden="true">
     <span></span>
-    <p>Sincronizando universo</p>
+    <p>Actualizando información</p>
   </div>
   <div class="blocker-modal" id="blockerModal" aria-hidden="true">
     <div class="blocker-orbit"></div>

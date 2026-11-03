@@ -166,3 +166,19 @@
   .login-brand { margin-bottom: 22px; }
 }
 @media(max-height:650px) { .login-layout { align-items: start; padding-top: 16px; padding-bottom: 16px; } .login-brand { margin-bottom: 14px; } .login-orbital { min-height: 360px; } }
+
+@media(min-width:681px) and (max-width:1180px) {
+  .table-toolbar { flex-wrap: wrap; }
+  .table-wrap { overflow: visible; }
+  .table-panel { min-height: 0; }
+  .premium-table { display: block; min-width: 0; }
+  .premium-table thead { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; clip-path: inset(50%); overflow: hidden; }
+  .premium-table tbody { display: grid; gap: 12px; }
+  .premium-table tr { display: grid; min-width: 0; padding: 16px; border: 1px solid var(--line); border-radius: 14px; background: var(--soft); }
+  .premium-table td { display: block; min-width: 0; padding: 8px 0; border: 0; overflow-wrap: anywhere; }
+  .premium-table td[data-label]::before { content: attr(data-label); display: block; margin-bottom: 5px; font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+  .premium-table .message-cell { max-width: none; white-space: normal; overflow-wrap: anywhere; }
+  .row-project { overflow-wrap: anywhere; }
+  .actions-cell { justify-content: flex-start; }
+}
+@media(max-width:360px) { .segmented-control { grid-template-columns: repeat(2,minmax(0,1fr)); } }
