@@ -16,7 +16,7 @@ else {
 }
 const ownerKeyHash=crypto.createHash('sha256').update(secrets.ownerKey).digest('base64url');
 fs.writeFileSync(path.join(root,'push-config.json'),JSON.stringify({version:1,vapidPublicKey:secrets.vapidPublicKey,ownerKeyHash,subject:'mailto:tecnometaversesolutions@gmail.com'},null,2)+'\n');
-fs.writeFileSync(path.join(privateDir,'CLAVE-VINCULACION.txt'),`DEVNEX · Vinculación privada\n\nEn tu teléfono, abre DEVNEX → Ajustes → Clave de vinculación.\nPega esta clave una sola vez y pulsa Vincular. Después activa las notificaciones.\n\n${secrets.ownerKey}\n\nEsta clave abre tu agenda privada y permite registrar tu teléfono para los avisos.\nGuárdala y no la publiques en GitHub ni la compartas con clientes.\n`,{mode:0o600});
+fs.writeFileSync(path.join(privateDir,'CLAVE-VINCULACION.txt'),`DEVNEX · Respaldo privado de datos\n\nLa PWA ya no pide esta clave: inicia sesión con tu correo y contraseña de DEVNEX.\nPara configurar el backend seguro por primera vez, ejecuta npm run setup:auth y sigue backend/README.md.\n\n${secrets.ownerKey}\n\nConserva esta clave para recuperar los pagos cifrados y configurar el servidor.\nNo la publiques en GitHub ni la compartas con clientes.\n`,{mode:0o600});
 if(process.argv.includes('--github')) {
   const executable=process.env.GH_PATH||'gh';
   for(const [name,value] of [['DEVNEX_OWNER_KEY',secrets.ownerKey],['DEVNEX_VAPID_PRIVATE_KEY',secrets.vapidPrivateKey]]) {

@@ -65,7 +65,7 @@ test('background connection runner authenticates requests and reports publicatio
   const configuration={ownerKeyHash:crypto.createHash('sha256').update(key).digest('base64url')};
   const id=model.PREFIX+crypto.createHash('sha256').update(connection.repository.toLowerCase()).digest('base64url').slice(0,32);
   let rows=[{project_id:connection.project_id,status:'active',amount:0,message:''},await store.seal(id,connection,key)];
-  const server=http.createServer((req,res)=>{let body='';req.on('data',c=>body+=c);req.on('end',()=>{res.setHeader('Content-Type','application/json');if(req.method==='GET'){res.end(JSON.stringify({success:true,projects:rows}));return;}const {action,...value}=JSON.parse(body);rows=[value,...rows.filter(r=>r.project_id!==value.project_id)];res.end(JSON.stringify({success:true}));});});
+  const server=http.createServer((req,res)=>{let body='';req.on('data',c=>body+=c);req.on('end',()=>{res.setHeader('Content-Type','application/json');if(req.method==='GET'||JSON.parse(body).action==='get'){res.end(JSON.stringify({success:true,projects:rows}));return;}const {action,service_key,...value}=JSON.parse(body);rows=[value,...rows.filter(r=>r.project_id!==value.project_id)];res.end(JSON.stringify({success:true}));});});
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
   const options={ownerKey:key,configuration,apiUrl:`http://127.0.0.1:${server.address().port}`,github:githubFixture(),fetchSite:async()=>({ok:true,text:async()=>htmlTools.inject(html,connection,'https://devnnex.github.io/CLIENT/')})};
   try{
@@ -86,7 +86,7 @@ test('a legacy connection is migrated with a new admin-only receipt and cannot r
   const configuration={ownerKeyHash:crypto.createHash('sha256').update(key).digest('base64url')};
   const id=model.PREFIX+crypto.createHash('sha256').update(legacy.repository.toLowerCase()).digest('base64url').slice(0,32);
   let rows=[{project_id:legacy.project_id,status:'active',amount:0,message:''},await store.seal(id,legacy,key),{project_id:legacy.heartbeat_id,status:'active',amount:0,message:JSON.stringify({connection_id:legacy.request_id,project_id:legacy.project_id,repository:legacy.repository,origin:'https://devnnex.github.io',page_path:'/index.html',seen_at:new Date().toISOString()})}];
-  const server=http.createServer((req,res)=>{let body='';req.on('data',c=>body+=c);req.on('end',()=>{res.setHeader('Content-Type','application/json');if(req.method==='GET'){res.end(JSON.stringify({success:true,projects:rows}));return;}const{action,...record}=JSON.parse(body);rows=[record,...rows.filter(r=>r.project_id!==record.project_id)];res.end(JSON.stringify({success:true}));});});
+  const server=http.createServer((req,res)=>{let body='';req.on('data',c=>body+=c);req.on('end',()=>{res.setHeader('Content-Type','application/json');if(req.method==='GET'||JSON.parse(body).action==='get'){res.end(JSON.stringify({success:true,projects:rows}));return;}const{action,service_key,...record}=JSON.parse(body);rows=[record,...rows.filter(r=>r.project_id!==record.project_id)];res.end(JSON.stringify({success:true}));});});
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
   try{
     const result=await run({ownerKey:key,configuration,apiUrl:`http://127.0.0.1:${server.address().port}`,github:githubFixture(),fetchSite:async()=>({ok:true,text:async()=>{const current=await store.open(rows.find(r=>r.project_id===id),key);return htmlTools.inject(html,current,'https://devnnex.github.io/CLIENT/');}})});

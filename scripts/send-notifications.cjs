@@ -12,12 +12,7 @@ async function run({apiUrl=process.env.DEVNEX_API_URL||DEFAULT_API,ownerKey=proc
   const digest=privateStore.base64(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(ownerKey)));
   if(digest!==configuration.ownerKeyHash)throw new Error('La clave privada no corresponde a la configuración publicada.');
   if(!checkOnly)webpush.setVapidDetails(configuration.subject,configuration.vapidPublicKey,vapidPrivateKey);
-  async function request(action,payload) {
-    const response=await fetch(apiUrl+(action==='get'?'?t='+Date.now():''),action==='get'?{cache:'no-store',signal:AbortSignal.timeout(20000)}:
-      {method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action,...payload}),signal:AbortSignal.timeout(20000)});
-    const data=await response.json();if(!response.ok||data.error||data.success===false)throw new Error('No se pudo sincronizar con Apps Script.');
-    return data;
-  }
+  const request=require('./backend-client.cjs').backendClient(apiUrl,ownerKey);
   const data=await request('get'),records=Array.isArray(data)?data:data.projects||data.data||data.rows;
   if(!Array.isArray(records))throw new Error('Respuesta de registros inválida.');
   const payments=[],subscriptions=[];let invalid=0;

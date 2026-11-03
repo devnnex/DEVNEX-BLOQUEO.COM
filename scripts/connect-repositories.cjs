@@ -68,10 +68,7 @@ async function run({apiUrl=process.env.DEVNEX_API_URL||DEFAULT_API,ownerKey=proc
   if(store.base64(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(ownerKey)))!==configuration.ownerKeyHash)throw new Error('La clave de la conexión no corresponde a DEVNEX.');
   if(!github&&!token)throw new Error('Falta configurar DEVNEX_REPO_TOKEN en GitHub Actions.');
   github=github||new GitHub(token);
-  async function request(action,payload={}){
-    const response=await fetch(apiUrl+(action==='get'?'?t='+Date.now():''),action==='get'?{cache:'no-store',signal:AbortSignal.timeout(20000)}:{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action,...payload}),signal:AbortSignal.timeout(20000)});
-    const data=await response.json();if(!response.ok||data.error||data.success===false)throw new Error('No se pudo sincronizar la conexión con Apps Script.');return data;
-  }
+  const request=require('./backend-client.cjs').backendClient(apiUrl,ownerKey);
   async function records(){const data=await request('get');const rows=Array.isArray(data)?data:data.projects||data.data||data.rows;if(!Array.isArray(rows))throw new Error('Respuesta de registros inválida.');return rows;}
   let rows=await records();
   async function save(id,value,previousRequest=value.request_id){

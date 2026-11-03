@@ -10,8 +10,8 @@ test('background sender stores encrypted receipts, deduplicates, then handles a 
   let records=[client(),await privateStore.seal('__DEVNEX_PUSH__device',{id:'device',subscription:{endpoint:'https://fcm.googleapis.com/test',keys:{p256dh:'a',auth:'b'}}},ownerKey)];
   const server=http.createServer((req,res)=>{let body='';req.on('data',c=>body+=c);req.on('end',()=>{
     res.setHeader('Content-Type','application/json');
-    if(req.method==='GET'){res.end(JSON.stringify({success:true,projects:records}));return;}
-    const value=JSON.parse(body),{action,...record}=value;
+    if(req.method==='GET'||JSON.parse(body).action==='get'){res.end(JSON.stringify({success:true,projects:records}));return;}
+    const value=JSON.parse(body),{action,service_key,...record}=value;
     if(action==='delete')records=records.filter(p=>p.project_id!==record.project_id);
     else records=[record,...records.filter(p=>p.project_id!==record.project_id)];
     res.end(JSON.stringify({success:true}));

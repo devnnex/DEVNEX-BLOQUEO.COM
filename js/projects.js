@@ -3,10 +3,11 @@ window.DevnexProjects = (() => {
   let controlsBound = false;
   let renderedStatuses = "";
   const saving=new Set();
+  const deleting=new Set();
   const applyRead=(projects,revision)=>{
     if(revision!==DevnexAPI.revision)return;
     const current=app.state.projects;
-    app.state.projects=projects.map(project=>saving.has(project.project_id)?current.find(p=>p.project_id===project.project_id)||project:project);
+    app.state.projects=projects.filter(project=>!deleting.has(project.project_id)).map(project=>saving.has(project.project_id)?current.find(p=>p.project_id===project.project_id)||project:project);
     current.filter(project=>saving.has(project.project_id)&&!projects.some(p=>p.project_id===project.project_id)).forEach(project=>app.state.projects.unshift(project));
   };
   const statusOf = project => DevnexProjectState.status(project);
@@ -47,6 +48,8 @@ window.DevnexProjects = (() => {
 
   const initProjectsPage = async () => {
     bindProjectControls();
+    renderProjectsTable();
+    renderCurrentProject(app.state.projects);
     try {
       await loadProjects();
       window.DevnexConnections?.refresh();
@@ -350,6 +353,7 @@ window.DevnexProjects = (() => {
 
   const persistProject = async (project, isCreate = false) => {
     if(saving.has(project.project_id))return false;
+    const operationSession=window.DevnexAuth?.token();
     saving.add(project.project_id);
     const previous=[...app.state.projects];
     const optimistic=DevnexAPI.normalizeProject(project);
@@ -366,6 +370,7 @@ window.DevnexProjects = (() => {
       DevnexUI.showToast(isCreate ? "Proyecto creado." : "Proyecto actualizado.");
       return true;
     } catch (error) {
+      if(operationSession!==window.DevnexAuth?.token())return false;
       const old=previous.find(p=>p.project_id===project.project_id);
       app.state.projects=old?app.state.projects.map(p=>p.project_id===project.project_id?old:p):app.state.projects.filter(p=>p.project_id!==project.project_id);
       renderProjectsTable();renderStats(app.state.projects);
@@ -377,18 +382,23 @@ window.DevnexProjects = (() => {
   };
 
   const removeProject = async (projectId) => {
+    if(saving.has(projectId))return;
+    const operationSession=window.DevnexAuth?.token();
+    const previous=app.state.projects.find(project=>project.project_id===projectId),position=app.state.projects.indexOf(previous);
+    let deleted=false;
     try {
-      if(saving.has(projectId))return;
-      saving.add(projectId);renderProjectsTable();
+      saving.add(projectId);deleting.add(projectId);app.state.projects=app.state.projects.filter(project=>project.project_id!==projectId);renderProjectsTable();renderStats(app.state.projects);
       await DevnexAPI.deleteProject(projectId);
+      deleted=true;
       if(localStorage.getItem('devnex.ownerKey'))await window.DevnexConnections?.remove(projectId);
       app.state.projects = app.state.projects.filter((project) => project.project_id !== projectId);
       renderProjectsTable();
       DevnexUI.showToast("Proyecto eliminado.");
     } catch (error) {
+      if(!deleted&&previous&&operationSession===window.DevnexAuth?.token()){app.state.projects.splice(Math.max(0,Math.min(position,app.state.projects.length)),0,previous);renderStats(app.state.projects);}
       DevnexUI.showToast(error.message, "error");
     } finally {
-      saving.delete(projectId);renderProjectsTable();
+      saving.delete(projectId);deleting.delete(projectId);renderProjectsTable();
     }
   };
 

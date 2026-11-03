@@ -21,7 +21,7 @@ window.DevnexConnections=(()=>{
   function status(projectId){const connection=connectionFor(projectId);return model.led(connection,health.get(connection?.heartbeat_id));}
   function inputFor(projectId){return connectionFor(projectId)?.repository||projectId;}
   async function prepare(input,editingId){
-    if(!ownerKey())throw new Error('Vincula este dispositivo en Ajustes una sola vez para autorizar la instalación en tus repositorios.');
+    if(!ownerKey())throw new Error('Inicia sesión para conectar tus proyectos.');
     const target=model.parse(input),id=editingId||model.existingId(input,DevnexApp.state.projects)||target.name;
     const bound=connectionFor(id);
     if(bound&&bound.repository.toLowerCase()!==target.repository.toLowerCase()){

@@ -24,6 +24,7 @@ async function audit(page,label){
   const projectName='UN-PROYECTO-CON-NOMBRE-EXTENSO-PARA-REVISAR-LA-INTERFAZ-DEL-ADMINISTRADOR.COM';
   const payment=paymentModel.normalize({id:'forms-test',client:'Cliente con un nombre extenso que debe poder leerse sin romper ninguna tarjeta',project_id:projectName,amount:999999999,due_at:'2027-12-31T23:59:00Z',frequency:'monthly',note:'Un concepto detallado del pago que debe ajustarse al ancho disponible en cualquier dispositivo.'});
   const records=[{project_id:projectName,status:'active',amount:999999999,message:'Recordatorio cordial que debe ajustarse al espacio de la tarjeta sin provocar desplazamiento horizontal.'},await store.seal(paymentModel.PREFIX+payment.id,payment,key)];
+  const backend=require('./backend-fixture.cjs').fixture({ownerKey:key});records.forEach(backend.add);const login=backend.login();
   const mime={'.html':'text/html;charset=utf-8','.js':'text/javascript;charset=utf-8','.css':'text/css;charset=utf-8','.json':'application/json','.png':'image/png','.svg':'image/svg+xml'};
   const server=http.createServer((req,res)=>{const url=new URL(req.url,'http://localhost'),file=path.resolve(root,'.'+(url.pathname==='/'?'/index.html':decodeURIComponent(url.pathname)));if(!file.startsWith(root+path.sep)||!fs.existsSync(file)||fs.statSync(file).isDirectory()){res.writeHead(404);res.end();return;}res.setHeader('Content-Type',mime[path.extname(file)]||'application/octet-stream');fs.createReadStream(file).pipe(res);});
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
@@ -34,13 +35,13 @@ async function audit(page,label){
       const browser=await type.launch(engine==='chromium'&&chrome?{executablePath:chrome,headless:true}:{headless:true});
       try{
         const context=await browser.newContext({viewport:{width:390,height:844},locale:'es-CO',timezoneId:'America/Bogota',serviceWorkers:'block',hasTouch:true});
-        await context.route('https://script.google.com/**',route=>route.fulfill({json:{success:true,projects:records}}));
+        await context.route('https://script.google.com/**',route=>{const request=route.request(),url=new URL(request.url());return route.fulfill({json:backend.request(request.method(),request.method()==='POST'?request.postDataJSON():Object.fromEntries(url.searchParams))});});
         await context.route('**/push-config.json',route=>route.fulfill({json:configuration}));
         await context.route(/https:\/\/(cdn\.jsdelivr\.net|cdnjs\.cloudflare\.com)\//,route=>route.fulfill({body:'',contentType:route.request().resourceType()==='stylesheet'?'text/css':'text/javascript'}));
         const page=await context.newPage(),runtimeErrors=[];page.on('pageerror',error=>runtimeErrors.push(error.message));
         await page.goto(base);await page.locator('#loginForm').waitFor({state:'visible'});
         for(const [width,height]of[[280,653],[320,568],[390,844],[768,1024],[1366,768],[568,320]]){await page.setViewportSize({width,height});await audit(page,engine+' login '+width);}
-        await page.evaluate(key=>{localStorage.setItem('devnex.auth','Prueba de formularios');localStorage.setItem('devnex.ownerKey',key);DevnexAuth.guard();},key);
+        await page.evaluate(login=>{localStorage.setItem('devnex.session.v1',JSON.stringify({token:login.session_token,expiresAt:login.expires_at}));return DevnexAuth.guard();},login);
         await page.waitForFunction(()=>DevnexApp.state.projects.length===1);
         for(const [width,height]of[[280,653],[320,568],[360,640],[390,844],[430,932],[768,1024],[921,768],[1024,768],[1180,820],[1366,768],[568,320]]){
           await page.setViewportSize({width,height});
@@ -56,7 +57,7 @@ async function audit(page,label){
           if(width===320||width===390)await page.screenshot({path:path.join(root,'test-results',`payment-form-${engine}-${width}.png`),fullPage:true,animations:'disabled'});
           await page.locator('#paymentDialog [data-close-payment]').first().click();
           await page.evaluate(()=>DevnexApp.setView('settings'));await audit(page,engine+' settings '+width);
-          await page.evaluate(()=>{document.getElementById('pairDeviceForm').hidden=false;});await page.locator('#pairingKey').fill(key);await page.locator('#brandName').fill('Marca con un nombre largo para revisar su ajuste');await audit(page,engine+' pairing and settings inputs '+width);
+          await page.locator('#brandName').fill('Marca con un nombre largo para revisar su ajuste');await audit(page,engine+' settings inputs '+width);
           await page.evaluate(()=>document.getElementById('notificationDialog').showModal());await audit(page,engine+' notification dialog '+width);await page.locator('#laterPush').click();
         }
         assert.deepEqual(runtimeErrors,[],engine+' runtime errors');await context.close();
