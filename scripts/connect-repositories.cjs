@@ -1,6 +1,6 @@
 const store=require('../js/private-store.js');
 const model=require('../js/repository-model.js');
-const {inject,installed,revisionSW}=require('./connector-html.cjs');
+const {inject,installed,remove,revisionSW}=require('./connector-html.cjs');
 const DEFAULT_API='https://script.google.com/macros/s/AKfycbzUtJKIQEk8GWR7adR36cL1cLzMnmIMJxHixmGWbNcLilxIs3cYhH8wPLV3DFdf41VRtw/exec';
 class GitHub {
   constructor(token){this.token=token;}
@@ -32,13 +32,11 @@ async function install(connection,github){
   const root=prefix?prefix+'/':'';
   const excluded=/(^|\/)(node_modules|vendor|\.github|\.private|tests?|test-results|\.next)(\/|$)/i;
   let entries=tree.tree.filter(entry=>entry.type==='blob'&&entry.mode==='100644'&&entry.path.startsWith(root)&&!excluded.test(entry.path.slice(root.length))&&/\.html$/i.test(entry.path));
-  const rootIndex=entries.find(e=>e.path===root+'index.html');
-  const craIndex=entries.find(e=>e.path===root+'public/index.html');
-  if(!rootIndex&&!craIndex)throw new Error('No se encontró index.html ni public/index.html. Este proyecto necesita un adaptador para su framework antes de conectarse.');
   // A Pages output branch cannot safely reveal where its build sources live.
   if(branch!==repo.default_branch&&pages.build_type==='workflow')throw new Error('La publicación usa una rama generada. Conecta primero su entrada HTML en la rama fuente.');
   if(!prefix)entries=entries.filter(e=>!/(^|\/)(dist|build|out|coverage)(\/|$)/i.test(e.path));
-  if(craIndex&&!rootIndex)entries=[craIndex];
+  const admins=entries.filter(e=>/(^|\/)admin\.html$/i.test(e.path));
+  if(!admins.length)throw new Error('No se encontró admin.html. No se instalarán cobros ni bloqueos en index.html o páginas públicas. Este proyecto necesita una entrada administrativa.');
   if(entries.length>120||entries.reduce((sum,e)=>sum+(e.size||0),0)>12000000)throw new Error('Hay demasiadas páginas para una instalación automática segura.');
   const updates=[];let documents=0;
   for(const entry of entries){
@@ -49,12 +47,13 @@ async function install(connection,github){
     if(!Buffer.from(html,'utf8').equals(bytes))throw new Error('La página no está codificada en UTF-8; necesita una conversión antes de conectarse.');
     // Fragments do not execute by themselves; only complete published documents are amended.
     if(!/<(?:head|body)(?:\s|>)/i.test(html))continue;
-    documents++;
-    const next=inject(html,connection,siteUrl);
+    if(/(^|\/)admin\.html$/i.test(entry.path))documents++;
+    const next=/(^|\/)admin\.html$/i.test(entry.path)?inject(html,connection,siteUrl):remove(html);
     if(next!==html)updates.push({path:entry.path,mode:entry.mode,type:'blob',content:next});
   }
-  if(!documents)throw new Error('No se encontró una página HTML completa donde instalar la conexión.');
-  if(!updates.length)return {commit:ref.object.sha,site_url:siteUrl,repository:repo.full_name,branch,files:[]};
+  if(!documents)throw new Error('No se encontró una página admin.html completa donde instalar la conexión.');
+  const adminUrl=new URL(admins[0].path.slice(root.length),siteUrl.endsWith('/')?siteUrl:siteUrl+'/').href;
+  if(!updates.length)return {commit:ref.object.sha,site_url:siteUrl,admin_url:adminUrl,repository:repo.full_name,branch,files:[]};
   for(const entry of tree.tree.filter(e=>e.type==='blob'&&e.mode==='100644'&&[root+'sw.js',root+'service-worker.js'].includes(e.path))){
     const blob=await github.api(base+'/git/blobs/'+entry.sha),source=Buffer.from(blob.content.replace(/\s/g,''),'base64').toString('utf8');
     updates.push({path:entry.path,mode:entry.mode,type:'blob',content:revisionSW(source,connection)});
@@ -62,7 +61,7 @@ async function install(connection,github){
   const nextTree=await github.api(base+'/git/trees','POST',{base_tree:commit.tree.sha,tree:updates});
   const nextCommit=await github.api(base+'/git/commits','POST',{message:'Connect DEVNEX service reminders and payment control',tree:nextTree.sha,parents:[ref.object.sha]});
   await github.api(base+'/git/refs/heads/'+pathPart(branch),'PATCH',{sha:nextCommit.sha,force:false});
-  return {commit:nextCommit.sha,site_url:siteUrl,repository:repo.full_name,branch,files:updates.map(e=>e.path)};
+  return {commit:nextCommit.sha,site_url:siteUrl,admin_url:adminUrl,repository:repo.full_name,branch,files:updates.map(e=>e.path)};
 }
 async function run({apiUrl=process.env.DEVNEX_API_URL||DEFAULT_API,ownerKey=process.env.DEVNEX_OWNER_KEY,token=process.env.DEVNEX_REPO_TOKEN,github,now=Date.now(),fetchSite=fetch,configuration=require('../push-config.json')}={}){
   store.validate(ownerKey||'');
@@ -75,11 +74,12 @@ async function run({apiUrl=process.env.DEVNEX_API_URL||DEFAULT_API,ownerKey=proc
   }
   async function records(){const data=await request('get');const rows=Array.isArray(data)?data:data.projects||data.data||data.rows;if(!Array.isArray(rows))throw new Error('Respuesta de registros inválida.');return rows;}
   let rows=await records();
-  async function save(id,value){
-    const latest=(await records()).find(r=>r.project_id===id);if(!latest)return;
-    const previous=await store.open(latest,ownerKey);if(previous.request_id!==value.request_id)return;
+  async function save(id,value,previousRequest=value.request_id){
+    const latest=(await records()).find(r=>r.project_id===id);if(!latest)return false;
+    const previous=await store.open(latest,ownerKey);if(previous.request_id!==previousRequest)return false;
     const record=await store.seal(id,value,ownerKey);await request('update',record);
     if(!(await records()).some(r=>r.project_id===id&&r.message===record.message))throw new Error('No se confirmó el estado de conexión.');
+    return true;
   }
   const summary={reviewed:0,installed:0,confirmed:0,errors:0,invalid:0};
   for(const record of rows.filter(r=>String(r.project_id).startsWith(model.PREFIX))){
@@ -90,17 +90,18 @@ async function run({apiUrl=process.env.DEVNEX_API_URL||DEFAULT_API,ownerKey=proc
       const id=model.PREFIX+store.base64(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(target.repository.toLowerCase()))).slice(0,32);
       if(id!==record.project_id||!/^[-\w]{20,80}$/.test(connection.request_id)||connection.heartbeat_id!=='__DEVNEX_HEALTH__'+connection.request_id||!rows.some(p=>p.project_id===connection.project_id&&!String(p.project_id).startsWith('__DEVNEX_')))throw new Error('Solicitud inválida.');
     }catch(_){summary.invalid++;continue;}
+    if(connection.version!==2){const previousRequest=connection.request_id;connection={...connection,version:2,scope:'admin',phase:'queued',request_id:crypto.randomUUID()};connection.heartbeat_id='__DEVNEX_HEALTH__'+connection.request_id;if(!await save(record.project_id,connection,previousRequest))continue;}
     if(['connected','error'].includes(connection.phase)||summary.reviewed>=4)continue;
     summary.reviewed++;
     try{
       if(connection.phase==='queued'){
         const result=await install(connection,github);
-        connection={...connection,phase:'deploying',installed_commit:result.commit,resolved_repository:result.repository,site_url:result.site_url,branch:result.branch,files:result.files,updated_at:new Date(now).toISOString(),message:'Script instalado; esperando la publicación de GitHub Pages.'};
+        connection={...connection,phase:'deploying',installed_commit:result.commit,resolved_repository:result.repository,site_url:result.site_url,admin_url:result.admin_url,branch:result.branch,files:result.files,updated_at:new Date(now).toISOString(),message:'Control instalado solo en admin.html; esperando GitHub Pages.'};
         await save(record.project_id,connection);summary.installed++;
       }
       if(connection.phase==='deploying'){
         let response;
-        try{response=await fetchSite(connection.site_url+(connection.site_url.includes('?')?'&':'?')+'devnex_check='+encodeURIComponent(connection.request_id),{cache:'no-store',signal:AbortSignal.timeout(15000)});}catch(_){/* Retry a temporary network problem on the next scheduled review. */}
+        try{response=await fetchSite(connection.admin_url+'?devnex_check='+encodeURIComponent(connection.request_id),{cache:'no-store',signal:AbortSignal.timeout(15000)});}catch(_){/* Retry a temporary network problem on the next scheduled review. */}
         if(response?.ok&&installed(await response.text(),connection)){
           connection={...connection,phase:'awaiting_client',message:'Conexión publicada. Esperando la primera confirmación del sistema cliente.'};
           await save(record.project_id,connection);
@@ -110,7 +111,7 @@ async function run({apiUrl=process.env.DEVNEX_API_URL||DEFAULT_API,ownerKey=proc
         rows=await records();const healthRecord=rows.find(r=>r.project_id===connection.heartbeat_id);
         let health;try{health=healthRecord?JSON.parse(healthRecord.message):null;}catch(_){}
         if(health&&typeof health.repository==='string'&&typeof health.origin==='string'&&Number.isFinite(Date.parse(health.seen_at))&&Date.parse(health.seen_at)<=now+60000){
-          if(health.connection_id===connection.request_id&&health.project_id===connection.project_id&&health.repository.toLowerCase()===connection.repository.toLowerCase()&&health.origin===new URL(connection.site_url).origin){
+          if(health.admin_only===true&&health.page_path===new URL(connection.admin_url).pathname&&health.connection_id===connection.request_id&&health.project_id===connection.project_id&&health.repository.toLowerCase()===connection.repository.toLowerCase()&&health.origin===new URL(connection.site_url).origin){
             await save(record.project_id,{...connection,phase:'connected',confirmed_at:health.seen_at,message:'El sistema cliente confirmó que recibe el control DEVNEX.'});summary.confirmed++;
           }
         }

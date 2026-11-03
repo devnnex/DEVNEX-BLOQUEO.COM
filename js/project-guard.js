@@ -44,6 +44,8 @@
 
 (() => {
   if (typeof window === "undefined" || document.body?.dataset.devnexConsole === "true" || window.__devnexGuard) return;
+  // Never read debts, restore a cached blocker, or mount collection UI on public pages.
+  if(!/(^|\/)admin\.html$/i.test(location.pathname))return;
   const config = window.DEVNEX_BLOCKER_CONFIG || {}, script = document.currentScript;
   const automatic=script?.dataset.devnexConnector==='v1';
   const projectId = [automatic?script.dataset.projectId:null,config.project_id, config.projectId,
@@ -64,7 +66,7 @@
   async function heartbeat(){
     if(!healthId||healthId!=='__DEVNEX_HEALTH__'+connectionId||heartbeatPending)return;
     const lastKey='devnex.health.last:'+connectionId;
-    try{if(Date.now()-Number(localStorage.getItem(lastKey)||0)<60000)return;}catch(_){}
+    try{if(Date.now()-Number(localStorage.getItem(lastKey)||0)<15000)return;}catch(_){}
     heartbeatPending=true;
     const healthController=new AbortController(),healthTimeout=setTimeout(()=>healthController.abort(),20000);
     try{
@@ -73,15 +75,16 @@
       const previous=await previousResponse.json();if(!previousResponse.ok||previous.success===false&&!projectMissing(previous))throw new Error('Health read failed');
       const found=previous.project||previous.data||previous;
       const exists=Array.isArray(previous.projects)?previous.projects.some(p=>p.project_id===healthId):found.project_id===healthId;
-      const record={project_id:healthId,status:'active',amount:0,message:JSON.stringify({connection_id:connectionId,project_id:projectId,repository,seen_at:new Date().toISOString(),origin:location.origin,guard_version:3})};
+      const record={project_id:healthId,status:'active',amount:0,message:JSON.stringify({connection_id:connectionId,project_id:projectId,repository,seen_at:new Date().toISOString(),origin:location.origin,guard_version:4,admin_only:true,page_path:location.pathname})};
       const response=await fetch(apiUrl,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:exists?'update':'create',...record}),signal:healthController.signal});
       const saved=await response.json();if(!response.ok||saved.success===false||saved.error)throw new Error('Health write failed');
       try{localStorage.setItem(lastKey,String(Date.now()));}catch(_){}
+      try{channel?.postMessage({type:'admin-heartbeat',project_id:projectId});}catch(_){}
     }catch(_){/* A missing receipt never prevents normal operation or creates a positive LED. */}
     finally{clearTimeout(healthTimeout);heartbeatPending=false;}
   }
   const money = v => new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(v);
-  let current = null, host, shadow, signature, pending = false, previousFocus, observer;
+  let current = null, host, shadow, signature, pending = false, previousFocus, observer,syncAgain=false;
   const inertElements = new Map();
   const css = `
     :host{all:initial;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:#f9f7ff;font-size:16px;line-height:1.5;color-scheme:dark}
@@ -160,8 +163,8 @@
     try { if (project) localStorage.setItem(cacheKey, JSON.stringify(project)); else localStorage.removeItem(cacheKey); } catch (_) { /* Shared deadline still works without storage. */ }
     render();
   }
-  async function sync() {
-    if (pending) return;
+  async function sync(recheck=false) {
+    if (pending) {if(recheck)syncAgain=true;return;}
     pending = true;
     const controller = new AbortController(), timeout = setTimeout(() => controller.abort(), 12000);
     try {
@@ -176,14 +179,16 @@
       const project = model.normalize({ ...raw, project_id: raw.project_id || projectId });
       if (project.project_id === projectId) {store(project);heartbeat();}
     } catch (_) { console.warn("DEVNEX: sin conexión para sincronizar; se conserva el último vencimiento conocido."); }
-    finally { clearTimeout(timeout); pending = false; }
+    finally { clearTimeout(timeout); pending = false;if(syncAgain){syncAgain=false;sync();} }
   }
   function start() {
     try { const saved = JSON.parse(localStorage.getItem(cacheKey)); if (saved?.project_id === projectId) current = model.normalize(saved); } catch (_) { /* No cache. */ }
     render(); sync(); setInterval(render, 1000);
-    setInterval(() => { if (!document.hidden) sync(); }, 15000);
+    setInterval(() => { if (!document.hidden&&navigator.onLine!==false) sync(); }, 3000);
     document.addEventListener("visibilitychange", () => { if (!document.hidden) { render(); sync(); } });
     window.addEventListener("focus", sync); window.addEventListener("online", sync);
   }
+  let channel;
+  try{channel=new BroadcastChannel('devnex.control.v2');channel.onmessage=event=>{if(event.data?.type==='project-changed'&&event.data.project_id===projectId)sync(true);};}catch(_){}
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start, { once: true }); else start();
 })();

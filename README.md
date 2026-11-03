@@ -8,7 +8,9 @@ Panel estático para gestionar proyectos mediante la API existente de Google App
 2. Selecciona **Avisar · iniciar contador**, el plazo en horas, el mensaje, la esquina y la distancia desde arriba. El valor inicial es 110 px desde la esquina superior derecha; en pantallas bajas se limita para mantenerlo visible.
 3. Guarda. El plazo empieza al guardar y el cliente puede seguir trabajando. El aviso se puede minimizar.
 4. Al llegar a cero, se muestra la suspensión con el contacto del desarrollador, **ELKIN RANGEL** y la llave Nequi/Bre-B **3208759798**.
-5. Usa **Activar sin aviso** (icono de candado abierto) o cambia a **Activo · sin aviso** para quitar el aviso y el bloqueo. Los clientes conectados consultan cada 15 segundos, al recuperar conexión y al volver a la pestaña.
+5. Usa **Activar sin aviso** (icono de candado abierto) o cambia a **Activo · sin aviso** para quitar el aviso y el bloqueo. Los administradores conectados consultan cada 3 segundos mientras su página está visible, al recuperar conexión y al volver a la pestaña. Entre pestañas del mismo origen, un aviso local inicia la consulta inmediatamente después de confirmar el guardado.
+
+Los avisos y bloqueos se muestran **exclusivamente en `admin.html`**, también en carpetas que contengan ese archivo. `index.html`, `mesa.html` y las demás páginas públicas no consultan datos de cobro ni restauran bloqueos guardados. El guard ignora su ejecución en esas páginas incluso si conservan una inclusión antigua del script. Este control visual no sustituye la autenticación administrativa ni el control de acceso a datos del backend.
 
 Editar el mensaje o la posición conserva el vencimiento. Cambiar las horas o marcar **Reiniciar el plazo** crea un plazo nuevo. También se conserva **Bloquear ahora** para una suspensión inmediata. Los bloqueos antiguos mantienen su estado hasta que el administrador los cambie.
 
@@ -26,22 +28,26 @@ Elige activo, aviso o bloqueo, completa importe/mensaje y guarda. No tienes que 
 El LED junto al nombre muestra:
 
 - **Ámbar:** en cola, publicando o esperando la primera apertura del cliente.
-- **Verde fluorescente:** el navegador del cliente ejecutó el script y confirmó la comunicación en los últimos 3 minutos.
+- **Verde fluorescente:** `admin.html` ejecutó el script y confirmó la comunicación en los últimos 3 minutos. Ya puede recibir los avisos o bloqueos guardados.
 - **Verde tenue:** la conexión ya fue confirmada, pero no hay una señal reciente; puede no haber nadie usando el sistema.
 - **Rojo:** falló la instalación; abre el botón de enchufe para ver el motivo y guarda para reintentar.
 - **Gris:** todavía no se ha solicitado la conexión automática.
 
-El cliente envía una señal como máximo una vez por minuto y el panel la consulta cada 20 segundos mientras miras Proyectos. Un LED no asegura que haya usuarios trabajando: señala la ejecución del control. En el formulario puedes ver la última confirmación y **Abrir sistema cliente** para comprobarla. GitHub Pages y sus tareas programadas pueden tardar más de lo habitual.
+El administrador envía una señal como máximo cada 15 segundos y el panel la consulta cada 4 segundos mientras miras Proyectos. Si ambas pestañas comparten origen, la señal avisa al panel de inmediato. Un LED no asegura que haya usuarios trabajando: señala la ejecución del control administrativo. En el formulario puedes ver la última confirmación y **Abrir administrador** para comprobarla.
+
+**Rapidez:** navegar y mostrar el estado de una edición responde inmediatamente. Las escrituras se confirman contra el servidor, con indicación de guardado por fila y sin una pantalla de carga que bloquee todo el panel. Una actualización de proyecto conectado usa un POST y una lectura de verificación; las vistas y la conexión comparten esa lectura. Si falla el guardado, se restaura el estado anterior. Los tiempos de red siguen dependiendo de Apps Script y del dispositivo.
+
+**Primera instalación:** no se puede prometer que el LED pase a verde en segundos cuando el script todavía no está instalado. La cola de Actions se revisa aproximadamente cada cinco minutos y después GitHub Pages debe publicar. No se marcan conexiones ficticias como listas. Una vez instalado el control y abierto `admin.html`, no se espera al cron para detectar la señal ni para entregar bloqueos.
 
 Los registros anteriores conservan su `project_id`, incluso si no incluía `.COM`; nombre y enlace no crean dos registros. Usa el enchufe junto a un registro anterior para conectarlo. La consola `DEVNEX-BLOQUEO.COM` se protege frente a una conexión como cliente, para mantener disponible el panel de desbloqueo.
 
-La instalación es compatible con páginas HTML estáticas, páginas múltiples, entradas HTML de Vite y `public/index.html`. Detecta la rama/carpeta de Pages, realiza un commit sin forzar la rama, sustituye la inclusión anterior de DEVNEX y renueva los service workers de entrada habituales. No ejecuta scripts del repositorio cliente, no modifica su lógica ni cambia sus reglas CSP. Frameworks sin una entrada HTML compatible, ramas protegidas o políticas que impidan cargar el script muestran un error concreto y requieren adaptar esa integración.
+La instalación localiza `admin.html` en la rama/carpeta publicada de Pages, agrega el control allí, elimina sus inclusiones de las páginas públicas y renueva los service workers de entrada habituales. Realiza un commit sin forzar la rama. Si no encuentra `admin.html`, informa del problema sin instalar cobros en páginas de clientes. Las conexiones anteriores se migran al alcance administrativo y necesitan una nueva señal de `admin.html`; sus señales antiguas de páginas públicas no encienden el LED. No ejecuta scripts del repositorio cliente, no modifica su lógica ni cambia sus reglas CSP. Frameworks sin esa entrada administrativa, ramas protegidas o políticas que impidan cargar el script requieren adaptar la integración.
 
 Para autorizar otra instalación: `npm run setup:connections`, usando GitHub CLI autenticado como `devnnex`. Guarda la credencial de esa sesión únicamente como secreto `DEVNEX_REPO_TOKEN` en este repositorio. Si se revoca o caduca, vuelve a ejecutar la configuración. El workflow solo atiende solicitudes cifradas válidas y repositorios de `devnnex`.
 
 ## Integración manual alternativa
 
-Publica este repositorio en el alojamiento HTTPS que ya uses para DEVNEX. En cada sistema cliente debe cargarse **la nueva versión** de `js/project-guard.js` en todas las páginas donde deba funcionar el aviso:
+Publica este repositorio en el alojamiento HTTPS que ya uses para DEVNEX. En cada sistema cliente debe cargarse **la nueva versión** de `js/project-guard.js` únicamente dentro de `admin.html`:
 
 ```html
 <script>
@@ -50,12 +56,12 @@ Publica este repositorio en el alojamiento HTTPS que ya uses para DEVNEX. En cad
     whatsapp: '573246394689'
   };
 </script>
-<script defer src="https://devnnex.github.io/DEVNEX-BLOQUEO.COM/js/project-guard.js?v=2"></script>
+<script defer src="https://devnnex.github.io/DEVNEX-BLOQUEO.COM/js/project-guard.js?v=4"></script>
 ```
 
 Conserva el `project_id` registrado en el panel. También funciona `data-project-id` en el script y las variables de identificación de la integración anterior. `apiUrl` permite usar otro despliegue de Apps Script. El número de WhatsApp predeterminado se conserva del panel anterior; es independiente de la llave de pago Nequi.
 
-El guard es autónomo, no requiere CSS ni librerías del cliente y aísla sus estilos con Shadow DOM. La conexión automática anterior hace esta instalación por ti; este fragmento queda como alternativa manual. Una copia antigua del guard no interpreta los nuevos plazos. Invalida también la caché de su service worker, si existe. La conexión automática usa `v=3` y agrega los atributos de confirmación del LED.
+El guard es autónomo, no requiere CSS ni librerías del cliente y aísla sus estilos con Shadow DOM. La conexión automática anterior hace esta instalación por ti; este fragmento queda como alternativa manual. Una copia antigua del guard no interpreta los nuevos plazos. Invalida también la caché de su service worker, si existe. La conexión automática usa `v=4` y agrega los atributos de confirmación del LED administrativo.
 
 ## Persistencia y compatibilidad
 

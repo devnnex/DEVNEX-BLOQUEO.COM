@@ -32,8 +32,8 @@ const server = http.createServer((req, res) => {
     let body = ''; req.on('data', chunk => body += chunk); req.on('end', () => res.end(JSON.stringify(apiResponse(req.method, body ? JSON.parse(body) : {}, url.searchParams.get('project_id')))));
     return;
   }
-  if (url.pathname === '/client.html') { res.setHeader('Content-Type', 'text/html'); res.end(clientHtml); return; }
-  if (url.pathname === '/connected-client.html') {
+  if (['/client.html','/customer/index.html','/mesa.html','/admin.html'].includes(url.pathname)) { res.setHeader('Content-Type', 'text/html'); res.end(clientHtml); return; }
+  if (url.pathname === '/connected/admin.html') {
     const id=url.searchParams.get('connection');
     if(!/^[\w-]{36}$/.test(id)){res.writeHead(400);res.end();return;}
     res.setHeader('Content-Type','text/html');
@@ -114,10 +114,13 @@ async function mockRemote(context) {
     const connectionRecords=records.filter(p=>p.project_id.startsWith('__DEVNEX_CONNECTION__'));
     assert.equal(connectionRecords.length,1);
     const queuedConnection=await require('../js/private-store.js').open(connectionRecords[0],ownerKey);
-    const connected=await context.newPage();await connected.goto(url+'/connected-client.html?connection='+queuedConnection.request_id);
+    const connected=await context.newPage();await connected.goto(url+'/connected/admin.html?connection='+queuedConnection.request_id);
     await connected.waitForFunction(()=>!!localStorage.getItem('devnex.health.last:'+document.querySelector('[data-devnex-connector]').dataset.devnexConnection));
     await page.evaluate(()=>DevnexConnections.refresh());
     await visible(page,'.connection-led.online');await connected.close();
+    await page.locator('[data-action=edit]').focus();
+    await page.evaluate(()=>DevnexConnections.refresh({fresh:true}));
+    assert.equal(await page.evaluate(()=>document.activeElement.dataset.action),'edit','LED refresh must preserve keyboard focus');
     await screenshot(page, 'projects-mobile');
     await page.reload();
     await visible(page, '[data-action=edit]');
@@ -171,9 +174,9 @@ async function mockRemote(context) {
     await visible(page,'[data-action=edit]');
     assert.equal(await page.locator('#projectsTableBody tr').count(),1,'internal payment records must not appear as projects');
 
-    // Client sees one nonblocking warning in every section, and its deadline survives reload.
+    // Only the admin page sees the warning; the deadline survives reload.
     const client = await context.newPage(); client.on('pageerror', e => errors.push(e.message));
-    await client.goto(url + '/client.html'); await visible(client, '#devnexProjectGuard .warning');
+    await client.goto(url + '/admin.html'); await visible(client, '#devnexProjectGuard .warning');
     assert.equal(await client.locator('#clientApp').evaluate(el => el.inert), false);
     await client.locator('#customerInput').fill('Se puede trabajar');
     await client.reload(); await visible(client, '#devnexProjectGuard .warning');
@@ -186,7 +189,7 @@ async function mockRemote(context) {
     }
     await client.setViewportSize({width:390,height:844}); await screenshot(client, 'client-warning-mobile');
     const secondContext = await browser.newContext(); const second = await secondContext.newPage();
-    await second.goto(url + '/client.html'); await visible(second, '#devnexProjectGuard .warning');
+    await second.goto(url + '/admin.html'); await visible(second, '#devnexProjectGuard .warning');
     await secondContext.close();
 
     // Local expiration requires no additional network response.
@@ -197,6 +200,16 @@ async function mockRemote(context) {
     assert.equal(await client.locator('#clientApp').evaluate(el => el.inert), true);
     assert.equal(await client.locator('#devnexProjectGuard .owner').textContent(),'ELKIN RANGEL');
     assert.equal(await client.locator('#devnexProjectGuard .number').textContent(),'320 875 9798');
+    for(const route of ['/client.html','/customer/index.html','/mesa.html']){
+      const publicPage=await context.newPage(),requests=[];
+      publicPage.on('request',request=>{if(request.url().includes('/test-api'))requests.push(request.url());});
+      await publicPage.goto(url+route);await publicPage.locator('#customerInput').fill('La página pública sigue funcionando');
+      assert.equal(await publicPage.locator('#devnexProjectGuard').count(),0);
+      assert.equal(await publicPage.evaluate(()=>!!window.__devnexGuard),false);
+      assert.equal(await publicPage.locator('#clientApp').evaluate(el=>el.inert),false);
+      assert.equal(requests.length,0,'public pages must not even query collection data');
+      await publicPage.close();
+    }
     for (const [width,height] of [[320,568],[390,844],[1366,768],[812,375]]) {
       await client.setViewportSize({width,height}); await noOverflow(client, `blocker ${width}`);
       await client.locator('#devnexProjectGuard .cta').scrollIntoViewIfNeeded();
@@ -208,8 +221,11 @@ async function mockRemote(context) {
     await client.unroute('**/test-api*');
     // Unlock is received while the page stays open; background interaction is restored.
     setClient(model.serialize({...scheduled,status:'active',deadline_at:null}));
-    await client.evaluate(() => window.dispatchEvent(new Event('online')));
-    await client.locator('#devnexProjectGuard').waitFor({state:'detached'});
+    await client.bringToFront();
+    const deliveredAt=Date.now();
+    await page.evaluate(()=>{const channel=new BroadcastChannel('devnex.control.v2');channel.postMessage({type:'project-changed',project_id:'CLIENT-TEST'});channel.close();});
+    await client.locator('#devnexProjectGuard').waitFor({state:'detached',timeout:8000});
+    console.log('Admin unlock propagated without the old 15-second wait: '+(Date.now()-deliveredAt)+'ms in local browser test.');
     assert.equal(await client.locator('#clientApp').evaluate(el => el.inert), false);
     await client.locator('#customerInput').fill('Acceso restablecido');
     // Old immediate blocks also work and clearing an active warning removes it.
@@ -239,7 +255,7 @@ async function mockRemote(context) {
       const buffer = await response.body(); const size = Number(icon.sizes.split('x')[0]);
       assert.equal(buffer.readUInt32BE(16),size); assert.equal(buffer.readUInt32BE(20),size);
     }
-    assert.ok((await pwa.evaluate(async () => (await caches.open('devnex-pwa-v5')).keys().then(v=>v.length))) >= 25);
+    assert.ok((await pwa.evaluate(async () => (await caches.open('devnex-pwa-v6')).keys().then(v=>v.length))) >= 25);
     // Permission and encrypted device registration without sending to a real push endpoint.
     await pwaContext.grantPermissions(['notifications']);
     await pwa.evaluate(({ownerKey,publicKey})=>{

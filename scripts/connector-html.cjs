@@ -1,5 +1,5 @@
 const parse5=require('parse5');
-const GUARD_URL='https://devnnex.github.io/DEVNEX-BLOQUEO.COM/js/project-guard.js?v=3';
+const GUARD_URL='https://devnnex.github.io/DEVNEX-BLOQUEO.COM/js/project-guard.js?v=4';
 function nodes(html){const list=[];const walk=node=>{list.push(node);for(const child of node.childNodes||[])walk(child);};walk(parse5.parse(html,{sourceCodeLocationInfo:true}));return list;}
 const attr=(node,name)=>node.attrs?.find(a=>a.name===name)?.value;
 function ours(node){
@@ -26,12 +26,13 @@ function inject(html,connection,siteUrl){
   const head=all.find(n=>n.tagName==='head'&&n.sourceCodeLocation?.endTag),body=all.find(n=>n.tagName==='body'&&n.sourceCodeLocation?.endTag);
   const offset=head?.sourceCodeLocation.endTag.startOffset??body?.sourceCodeLocation.endTag.startOffset;
   if(offset===undefined)throw new Error('La página HTML no contiene un punto de entrada compatible (head o body).');
-  const tag=`<script defer src="${GUARD_URL}" data-devnex-connector="v1" data-project-id="${escape(connection.project_id)}" data-devnex-repository="${escape(connection.repository)}" data-devnex-connection="${escape(connection.request_id)}" data-devnex-health="${escape(connection.heartbeat_id)}"></script>`;
+  const tag=`<script defer src="${GUARD_URL}" data-devnex-connector="v1" data-devnex-admin-only="true" data-project-id="${escape(connection.project_id)}" data-devnex-repository="${escape(connection.repository)}" data-devnex-connection="${escape(connection.request_id)}" data-devnex-health="${escape(connection.heartbeat_id)}"></script>`;
   return html.slice(0,offset)+tag+'\n'+html.slice(offset);
 }
-function installed(html,connection){return nodes(html).some(n=>ours(n)&&attr(n,'data-project-id')===connection.project_id&&attr(n,'data-devnex-connection')===connection.request_id);}
+function installed(html,connection){return nodes(html).some(n=>ours(n)&&attr(n,'data-devnex-admin-only')==='true'&&attr(n,'data-project-id')===connection.project_id&&attr(n,'data-devnex-connection')===connection.request_id);}
+function remove(html){const ranges=nodes(html).filter(ours).map(n=>n.sourceCodeLocation).filter(Boolean).sort((a,b)=>b.startOffset-a.startOffset);for(const range of ranges)html=html.slice(0,range.startOffset)+html.slice(range.endOffset);return html;}
 function revisionSW(source,connection){
   const line=`// DEVNEX connection ${connection.request_id}: refresh the cached client shell.\n`;
   return line+source.replace(/^\/\/ DEVNEX connection [^\r\n]+\r?\n/,'');
 }
-module.exports={inject,installed,revisionSW,GUARD_URL};
+module.exports={inject,installed,remove,revisionSW,GUARD_URL};

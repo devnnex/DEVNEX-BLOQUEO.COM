@@ -2,6 +2,14 @@ window.DevnexAPI = (() => {
   const app = window.DevnexApp;
 
   const normalizeProject = DevnexProjectState.normalize;
+  let snapshot=null,snapshotAt=0,pendingRead=null,revision=0;
+  let channel;
+  try{channel=new BroadcastChannel('devnex.control.v2');}catch(_){}
+  const invalidate=()=>{revision++;snapshot=null;pendingRead=null;};
+  const mutate=async(action,payload)=>{
+    invalidate();
+    try{return await request(action,payload);}finally{invalidate();}
+  };
 
   const getLocalProjects = () => {
     const stored = localStorage.getItem(app.storageKeys.projects);
@@ -57,7 +65,6 @@ window.DevnexAPI = (() => {
   };
 
   const localRequest = async (action, payload) => {
-    await new Promise((resolve) => setTimeout(resolve, 320));
     const projects = getLocalProjects();
 
     if (action === "get" || action === "getProjects") {
@@ -101,22 +108,27 @@ window.DevnexAPI = (() => {
     return source.map(normalizeProject).filter((project) => project.project_id);
   };
 
-  const getProjects = async () => {
-    const data = await request("get", {}, "GET");
-    return extractProjects(data).filter(project => !project.project_id.startsWith("__DEVNEX_"));
+  const getProjects = async (options) => {
+    return extractProjects(await getRecords(options)).filter(project => !project.project_id.startsWith("__DEVNEX_"));
   };
 
-  const getRecords = async () => {
-    const data = await request("get", {}, "GET");
-    const source = Array.isArray(data) ? data : data.projects || data.data || data.rows || [];
-    if (!Array.isArray(source)) throw new Error("La API no devolvió una lista de registros.");
-    return source;
+  const getRecords = ({fresh=false}={}) => {
+    if(pendingRead)return pendingRead;
+    if(!fresh&&snapshot&&Date.now()-snapshotAt<4000)return Promise.resolve(snapshot);
+    const startedAtRevision=revision;
+    const operation=request('get',{t:Date.now()},'GET').then(data=>{
+      const source=Array.isArray(data)?data:data.projects||data.data||data.rows||[];
+      if(!Array.isArray(source))throw new Error('La API no devolvió una lista de registros.');
+      if(startedAtRevision===revision){snapshot=source;snapshotAt=Date.now();}
+      return source;
+    }).finally(()=>{if(pendingRead===operation)pendingRead=null;});
+    pendingRead=operation;return operation;
   };
   const saveRecord = async (record) => {
     if (!String(record.project_id).startsWith("__DEVNEX_")) throw new Error("Registro interno inválido.");
     const existing = (await getRecords()).some(p => p.project_id === record.project_id);
-    await request(existing ? "update" : "create", record);
-    const saved = (await getRecords()).find(p => p.project_id === record.project_id);
+    await mutate(existing ? "update" : "create", record);
+    const saved = (await getRecords({fresh:true})).find(p => p.project_id === record.project_id);
     if (!saved || saved.message !== record.message) throw new Error("La API no confirmó el registro guardado.");
     return saved;
   };
@@ -124,27 +136,29 @@ window.DevnexAPI = (() => {
   const createProject = async (project) => {
     const normalized = normalizeProject(project);
     if (normalized.project_id.startsWith("__DEVNEX_")) throw new Error("Ese prefijo está reservado para registros internos.");
-    await request("create", DevnexProjectState.serialize(normalized));
+    await mutate("create", DevnexProjectState.serialize(normalized));
     return verifySaved(normalized);
   };
 
   const updateProject = async (project) => {
     const normalized = normalizeProject(project);
-    await request("update", DevnexProjectState.serialize(normalized));
+    await mutate("update", DevnexProjectState.serialize(normalized));
     return verifySaved(normalized);
   };
 
   // Read back the record: never claim success if the backend dropped a schedule.
   const verifySaved = async (expected) => {
-    const saved = (await getProjects()).find(p => p.project_id === expected.project_id);
+    const saved = (await getProjects({fresh:true})).find(p => p.project_id === expected.project_id);
     if (!saved || saved.status !== expected.status || saved.deadline_at !== expected.deadline_at || saved.message !== expected.message || saved.amount !== expected.amount || (expected.status === "warning" && (saved.warning_position !== expected.warning_position || saved.warning_top !== expected.warning_top || saved.warning_hours !== expected.warning_hours))) {
       throw new Error("La API no confirmó los cambios. Actualiza los datos antes de volver a intentar.");
     }
+    try{channel?.postMessage({type:'project-changed',project_id:saved.project_id});}catch(_){}
     return saved;
   };
 
   const deleteProject = async (projectId) => {
-    await request("delete", { project_id: projectId });
+    await mutate("delete", { project_id: projectId });
+    try{channel?.postMessage({type:'project-changed',project_id:projectId});}catch(_){}
     return true;
   };
 
@@ -155,6 +169,7 @@ window.DevnexAPI = (() => {
     deleteProject,
     getRecords,
     saveRecord,
-    normalizeProject
+    normalizeProject,
+    get revision(){return revision;}
   };
 })();

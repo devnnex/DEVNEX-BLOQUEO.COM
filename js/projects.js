@@ -2,26 +2,31 @@ window.DevnexProjects = (() => {
   const app = window.DevnexApp;
   let controlsBound = false;
   let renderedStatuses = "";
+  const saving=new Set();
+  const applyRead=(projects,revision)=>{
+    if(revision!==DevnexAPI.revision)return;
+    const current=app.state.projects;
+    app.state.projects=projects.map(project=>saving.has(project.project_id)?current.find(p=>p.project_id===project.project_id)||project:project);
+    current.filter(project=>saving.has(project.project_id)&&!projects.some(p=>p.project_id===project.project_id)).forEach(project=>app.state.projects.unshift(project));
+  };
   const statusOf = project => DevnexProjectState.status(project);
   const statusLabel = project => ({ active: "Activo", warning: "En aviso", blocked: "Bloqueado" })[statusOf(project)];
   const deadlineLabel = project => project.deadline_at ? new Intl.DateTimeFormat("es-CO", { dateStyle: "medium", timeStyle: "short" }).format(new Date(project.deadline_at)) : "";
 
   const reload = async () => {
     try {
-      DevnexUI.setLoading(true);
-      app.state.projects = await DevnexAPI.getProjects();
+      const revision=DevnexAPI.revision;applyRead(await DevnexAPI.getProjects({fresh:true}),revision);
       await window.DevnexConnections?.refresh();
       renderCurrentPage();
       DevnexUI.showToast("Datos sincronizados.");
     } catch (error) {
       DevnexUI.showToast(error.message, "error");
-    } finally {
-      DevnexUI.setLoading(false);
     }
   };
 
   const loadProjects = async () => {
-    app.state.projects = await DevnexAPI.getProjects();
+    const revision=DevnexAPI.revision,projects=await DevnexAPI.getProjects();
+    applyRead(projects,revision);
     return app.state.projects;
   };
 
@@ -44,7 +49,7 @@ window.DevnexProjects = (() => {
     bindProjectControls();
     try {
       await loadProjects();
-      await window.DevnexConnections?.refresh();
+      window.DevnexConnections?.refresh();
       renderProjectsTable();
       renderCurrentProject(app.state.projects);
     } catch (error) {
@@ -138,8 +143,8 @@ window.DevnexProjects = (() => {
     document.getElementById("cancelDialog")?.addEventListener("click", closeDialog);
     document.getElementById("projectForm")?.addEventListener("submit",async event=>{
       event.preventDefault();const form=event.currentTarget;if(form.dataset.saving)return;
-      form.dataset.saving='true';const button=form.querySelector('[type=submit]');button.disabled=true;
-      try{await saveProjectFromForm(event);}finally{delete form.dataset.saving;button.disabled=false;}
+      form.dataset.saving='true';const button=form.querySelector('[type=submit]'),content=button.innerHTML;button.disabled=true;button.textContent='Guardando…';
+      try{await saveProjectFromForm(event);}finally{delete form.dataset.saving;button.disabled=false;button.innerHTML=content;}
     });
     document.getElementById("projectIdInput")?.addEventListener("input",event=>setText("repositoryHint",DevnexConnections.hint(event.target.value)));
     ["projectStatusInput", "warningHoursInput", "restartWarningInput"].forEach(id => document.getElementById(id)?.addEventListener("change", syncWarningFields));
@@ -182,6 +187,7 @@ window.DevnexProjects = (() => {
     } else {
       tbody.innerHTML = pageItems.map(renderProjectRow).join("");
     }
+    tbody.querySelectorAll('tr[aria-busy="true"] button').forEach(button=>{button.disabled=true;});
 
     const totalPages = Math.max(1, Math.ceil(filtered.length / app.state.pageSize));
     setText("paginationInfo", `${filtered.length} proyectos · pagina ${app.state.currentPage} de ${totalPages}`);
@@ -192,13 +198,13 @@ window.DevnexProjects = (() => {
   const renderProjectRow = (project) => {
     const connection=window.DevnexConnections?.status(project.project_id)||{tone:'off',label:'Sin conectar',detail:'Conecta el repositorio para habilitar su control automático.'};
     return `
-    <tr>
-      <td data-label="Proyecto"><span class="row-project"><span class="connection-led ${connection.tone}" role="img" aria-label="${escapeAttr(connection.label)}" title="${escapeAttr(connection.detail)}"></span>${escapeHTML(project.project_id)}</span><small class="connection-label" title="${escapeAttr(connection.detail)}">${escapeHTML(connection.label)}</small></td>
+    <tr ${saving.has(project.project_id)?'aria-busy="true"':''}>
+      <td data-label="Proyecto"><span class="row-project"><span class="connection-led ${connection.tone}" data-connection-id="${escapeAttr(project.project_id)}" role="img" aria-label="${escapeAttr(connection.label)}" title="${escapeAttr(connection.detail)}"></span>${escapeHTML(project.project_id)}</span><small class="connection-label" title="${escapeAttr(connection.detail)}">${escapeHTML(connection.label)}</small></td>
       <td data-label="Estado"><span class="status-badge ${statusOf(project)}">${statusLabel(project)}</span>${project.deadline_at ? `<small class="deadline-label">${escapeHTML(deadlineLabel(project))}</small><small class="deadline-label" data-countdown="${escapeAttr(project.project_id)}">${statusOf(project) === "blocked" ? "Plazo vencido" : countdownLabel(project)}</small>` : ""}</td>
       <td data-label="Deuda">${DevnexUI.formatCOP(project.amount)}</td>
       <td data-label="Mensaje" class="message-cell">${escapeHTML(project.message || "Sin mensaje")}</td>
       <td data-label="Acciones">
-        <div class="actions-cell">
+        <div class="actions-cell ${saving.has(project.project_id)?'saving-project':''}">
           <button class="icon-button" type="button" data-action="connect" data-id="${escapeAttr(project.project_id)}" aria-label="Conectar repositorio" data-tooltip="Conectar / revisar"><i class="fa-solid fa-plug"></i></button>
           <button class="icon-button" type="button" data-action="toggle" data-id="${escapeAttr(project.project_id)}" aria-label="${project.status === "active" ? "Programar aviso" : "Desbloquear y quitar aviso"}" data-tooltip="${project.status === "active" ? "Programar aviso" : "Activar sin aviso"}">
             <i class="fa-solid ${project.status === "active" ? "fa-clock" : "fa-unlock"}"></i>
@@ -214,11 +220,20 @@ window.DevnexProjects = (() => {
     </tr>
   `;};
 
+  const renderConnectionIndicators=()=>{
+    document.querySelectorAll('[data-connection-id]').forEach(led=>{
+      const state=DevnexConnections.status(led.dataset.connectionId);
+      led.className='connection-led '+state.tone;led.setAttribute('aria-label',state.label);led.title=state.detail;
+      const label=led.closest('td').querySelector('.connection-label');if(label){label.textContent=state.label;label.title=state.detail;}
+    });
+  };
+
   const handleTableAction = async (event) => {
     const button = event.target.closest("button[data-action]");
     if (!button) return;
     const project = app.state.projects.find((item) => item.project_id === button.dataset.id);
     if (!project) return;
+    if(saving.has(project.project_id))return;
 
     if (button.dataset.action === "edit" || button.dataset.action === "connect") {
       openEditDialog(project);
@@ -251,7 +266,7 @@ window.DevnexProjects = (() => {
     document.getElementById("projectIdInput").readOnly = false;
     document.getElementById("projectStatusInput").value = "active";
     setText('repositoryHint','Escribe el nombre del repositorio de tu cuenta devnnex o pega su enlace principal de GitHub.');
-    setText('connectionDetail','La instalación puede tardar unos minutos. El LED verde confirma la ejecución del script cliente.');
+    setText('connectionDetail','Los controles se aplican solo a admin.html. Una conexión nueva depende de la primera publicación de GitHub Pages.');
     document.getElementById('connectionSite').hidden=true;
     syncWarningFields();
     document.getElementById("projectDialog").showModal();
@@ -267,7 +282,7 @@ window.DevnexProjects = (() => {
     setText('connectionDetail',DevnexConnections.status(project.project_id).detail);
     const site=document.getElementById('connectionSite'),connection=DevnexConnections.connectionFor(project.project_id);
     site.hidden=true;
-    try{if(connection?.site_url&&new URL(connection.site_url).protocol==='https:'){site.href=connection.site_url;site.hidden=false;}}catch(_){}
+    try{if(connection?.admin_url&&new URL(connection.admin_url).protocol==='https:'){site.href=connection.admin_url;site.hidden=false;}}catch(_){}
     document.getElementById("projectStatusInput").value = project.status;
     document.getElementById("projectAmountInput").value = project.amount;
     document.getElementById("projectMessageInput").value = project.message;
@@ -304,7 +319,7 @@ window.DevnexProjects = (() => {
     const form = event.currentTarget;
     const data = new FormData(form);
     let target;
-    try { await DevnexConnections.refresh(); target=await DevnexConnections.prepare(data.get('project_id'),app.state.editingId); }
+    try { target=await DevnexConnections.prepare(data.get('project_id'),app.state.editingId); }
     catch(error){DevnexUI.showToast(error.message,'error');return;}
     const project = {
       project_id: target.project_id,
@@ -336,8 +351,13 @@ window.DevnexProjects = (() => {
   };
 
   const persistProject = async (project, isCreate = false) => {
+    if(saving.has(project.project_id))return false;
+    saving.add(project.project_id);
+    const previous=[...app.state.projects];
+    const optimistic=DevnexAPI.normalizeProject(project);
+    app.state.projects=previous.some(p=>p.project_id===optimistic.project_id)?previous.map(p=>p.project_id===optimistic.project_id?optimistic:p):[optimistic,...previous];
+    renderProjectsTable();renderStats(app.state.projects);
     try {
-      DevnexUI.setLoading(true);
       const saved = isCreate ? await DevnexAPI.createProject(project) : await DevnexAPI.updateProject(project);
       const exists = app.state.projects.some((item) => item.project_id === saved.project_id);
       app.state.projects = exists
@@ -348,16 +368,20 @@ window.DevnexProjects = (() => {
       DevnexUI.showToast(isCreate ? "Proyecto creado." : "Proyecto actualizado.");
       return true;
     } catch (error) {
+      const old=previous.find(p=>p.project_id===project.project_id);
+      app.state.projects=old?app.state.projects.map(p=>p.project_id===project.project_id?old:p):app.state.projects.filter(p=>p.project_id!==project.project_id);
+      renderProjectsTable();renderStats(app.state.projects);
       DevnexUI.showToast(error.message, "error");
       return false;
     } finally {
-      DevnexUI.setLoading(false);
+      saving.delete(project.project_id);renderProjectsTable();
     }
   };
 
   const removeProject = async (projectId) => {
     try {
-      DevnexUI.setLoading(true);
+      if(saving.has(projectId))return;
+      saving.add(projectId);renderProjectsTable();
       await DevnexAPI.deleteProject(projectId);
       if(localStorage.getItem('devnex.ownerKey'))await window.DevnexConnections?.remove(projectId);
       app.state.projects = app.state.projects.filter((project) => project.project_id !== projectId);
@@ -366,7 +390,7 @@ window.DevnexProjects = (() => {
     } catch (error) {
       DevnexUI.showToast(error.message, "error");
     } finally {
-      DevnexUI.setLoading(false);
+      saving.delete(projectId);renderProjectsTable();
     }
   };
 
@@ -390,6 +414,7 @@ window.DevnexProjects = (() => {
   const escapeAttr = (value) => escapeHTML(value).replace(/"/g, "&quot;");
 
   return {
+    renderConnectionIndicators,
     renderDashboard: () => { renderStats(app.state.projects); renderActivity(app.state.projects); DevnexCharts.createCharts(app.state.projects); },
     initDashboard,
     initProjectsPage,

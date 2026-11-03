@@ -3,17 +3,17 @@ window.DevnexConnections=(()=>{
   let entries=[],health=new Map(),refreshing,initialized=false;
   const ownerKey=()=>localStorage.getItem('devnex.ownerKey');
   const hash=async value=>DevnexPrivateStore.base64(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value))).slice(0,32);
-  async function refresh(){
+  async function refresh({fresh=false}={}){
     if(!ownerKey()){entries=[];health.clear();return;}
     if(refreshing)return refreshing;
     refreshing=(async()=>{
       try{
-        const records=await DevnexAPI.getRecords();
+        const records=await DevnexAPI.getRecords({fresh});
         const results=await Promise.allSettled(records.filter(r=>r.project_id.startsWith(model.PREFIX)).map(async r=>({record_id:r.project_id,...await DevnexPrivateStore.open(r,ownerKey())})));
         entries=results.filter(r=>r.status==='fulfilled').map(r=>r.value);
         health=new Map(records.filter(r=>r.project_id.startsWith('__DEVNEX_HEALTH__')).flatMap(record=>{try{return [[record.project_id,JSON.parse(record.message)]];}catch(_){return [];}}));
       }catch(_){/* Existing confirmations remain dated; a failed read never creates a green LED. */}
-      finally{refreshing=null;window.DevnexProjects?.renderProjectsTable();}
+      finally{refreshing=null;window.DevnexProjects?.renderConnectionIndicators();}
     })();
     return refreshing;
   }
@@ -35,13 +35,13 @@ window.DevnexConnections=(()=>{
   async function queue(project,target){
     const recordId=model.PREFIX+await hash(target.repository.toLowerCase());
     const old=entries.find(entry=>entry.record_id===recordId);
-    if(old&&old.project_id===project.project_id&&old.phase!=='error')return old;
+    if(old&&old.version===2&&old.scope==='admin'&&old.project_id===project.project_id&&old.phase!=='error')return old;
     const requestId=crypto.randomUUID();
-    const value={version:1,repository:target.repository,project_id:project.project_id,request_id:requestId,
+    const value={version:2,scope:'admin',repository:target.repository,project_id:project.project_id,request_id:requestId,
       heartbeat_id:'__DEVNEX_HEALTH__'+requestId,phase:'queued',requested_at:new Date().toISOString(),message:'Esperando instalación automática desde GitHub.'};
     await DevnexAPI.saveRecord(await DevnexPrivateStore.seal(recordId,value,ownerKey()));
     entries=[{record_id:recordId,...value},...entries.filter(entry=>entry.record_id!==recordId&&entry.project_id!==project.project_id)];
-    DevnexProjects.renderProjectsTable();return value;
+    DevnexProjects.renderConnectionIndicators();return value;
   }
   async function remove(projectId){
     for(const entry of entries.filter(entry=>entry.project_id===projectId))await DevnexAPI.deleteProject(entry.record_id);
@@ -50,9 +50,10 @@ window.DevnexConnections=(()=>{
   function hint(input){try{const parsed=model.parse(input);const id=model.existingId(input,DevnexApp.state.projects);return (id?'Se conservará el registro '+id+'. ':'')+'Repositorio: '+parsed.repository+'. Al guardar se instalará la conexión automáticamente.';}catch(error){return error.message;}}
   function init(){
     if(initialized)return;initialized=true;
-    setInterval(()=>{if(DevnexApp.page==='projects'&&!document.hidden&&DevnexAuth.isLoggedIn())refresh();},20000);
+    setInterval(()=>{if(DevnexApp.page==='projects'&&!document.hidden&&DevnexAuth.isLoggedIn()){if(navigator.onLine===false)DevnexProjects.renderConnectionIndicators();else refresh({fresh:true});}},4000);
     window.addEventListener('devnex:paired',refresh);
     document.addEventListener('visibilitychange',()=>{if(!document.hidden&&DevnexApp.page==='projects')refresh();});
+    try{const channel=new BroadcastChannel('devnex.control.v2');channel.onmessage=event=>{if(event.data?.type==='admin-heartbeat'&&DevnexApp.page==='projects')refresh({fresh:true});};}catch(_){}
   }
   document.addEventListener('DOMContentLoaded',init);
   return {refresh,status,connectionFor,inputFor,prepare,queue,remove,hint};

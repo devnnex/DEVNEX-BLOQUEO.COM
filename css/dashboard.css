@@ -283,6 +283,7 @@
 .connection-led.pending{background:#ffce45;box-shadow:0 0 8px #ffce4566}
 .connection-led.error{background:#ff526b;box-shadow:0 0 9px #ff526b88}
 .connection-label{display:block;font-size:11px;font-weight:500;color:var(--muted);margin-top:7px;white-space:normal}
+.saving-project{pointer-events:none;opacity:.5}.premium-table tr[aria-busy="true"] .connection-label::after{content:' · Guardando…';color:var(--lilac)}
 
 .message-cell {
   max-width: 340px;

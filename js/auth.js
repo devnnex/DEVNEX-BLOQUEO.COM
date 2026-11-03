@@ -24,9 +24,7 @@ window.DevnexAuth = (() => {
       const user = String(data.get("user") || "Administrador").trim();
       localStorage.setItem(app.storageKeys.auth, user || "Administrador");
       DevnexUI.showToast("Sesion iniciada.");
-      setTimeout(() => {
-        showApp("dashboard");
-      }, 420);
+      showApp("dashboard");
     });
   };
 

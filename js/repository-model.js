@@ -23,10 +23,11 @@
   }
   function led(connection,heartbeat,now=Date.now()) {
     if(!connection)return {tone:'off',label:'Sin conectar',detail:'Guarda el nombre o enlace del repositorio para instalar la conexión.'};
+    if(connection.version!==2||connection.scope!=='admin')return {tone:'pending',label:'Verificando admin',detail:'La conexión se actualizará para controlar únicamente admin.html.'};
     if(connection.phase==='error')return {tone:'error',label:'Revisar conexión',detail:connection.message||'No se pudo completar la instalación.'};
-    if(heartbeat&&heartbeat.connection_id===connection.request_id&&heartbeat.project_id===connection.project_id&&typeof heartbeat.repository==='string'&&heartbeat.repository.toLowerCase()===connection.repository.toLowerCase()&&Number.isFinite(Date.parse(heartbeat.seen_at))&&Date.parse(heartbeat.seen_at)<=now+60000){
+    if(heartbeat&&heartbeat.admin_only===true&&/(^|\/)admin\.html$/i.test(heartbeat.page_path||'')&&(!connection.admin_url||new URL(connection.admin_url).pathname===heartbeat.page_path)&&heartbeat.connection_id===connection.request_id&&heartbeat.project_id===connection.project_id&&typeof heartbeat.repository==='string'&&heartbeat.repository.toLowerCase()===connection.repository.toLowerCase()&&Number.isFinite(Date.parse(heartbeat.seen_at))&&Date.parse(heartbeat.seen_at)<=now+60000){
       const fresh=now-Date.parse(heartbeat.seen_at)<=180000;
-      return {tone:fresh?'online':'idle',label:fresh?'Conectado':'Conectado · sin señal reciente',detail:'El script se ejecutó y confirmó el control. Última señal: '+new Date(heartbeat.seen_at).toLocaleString('es-CO')+'.'};
+      return {tone:fresh?'online':'idle',label:fresh?'Admin conectado':'Admin · sin señal reciente',detail:'admin.html confirmó que recibe los controles. Última señal: '+new Date(heartbeat.seen_at).toLocaleString('es-CO')+'.'};
     }
     if(connection.phase==='awaiting_client'||connection.phase==='connected')return {tone:'pending',label:'Esperando primera señal',detail:'El script está publicado. Abre el sistema cliente para confirmar que puede recibir el control.'};
     if(connection.phase==='deploying')return {tone:'pending',label:'Publicando conexión',detail:'GitHub Pages está publicando el script instalado.'};

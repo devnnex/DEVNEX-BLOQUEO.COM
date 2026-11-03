@@ -14,6 +14,7 @@ window.DevnexCharts = (() => {
     const topDebts = [...projects].sort((a, b) => b.amount - a.amount).slice(0, 6);
 
     const baseOptions = {
+      animation: false,
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
