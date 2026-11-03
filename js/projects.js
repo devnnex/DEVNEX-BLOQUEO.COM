@@ -10,6 +10,7 @@ window.DevnexProjects = (() => {
     try {
       DevnexUI.setLoading(true);
       app.state.projects = await DevnexAPI.getProjects();
+      await window.DevnexConnections?.refresh();
       renderCurrentPage();
       DevnexUI.showToast("Datos sincronizados.");
     } catch (error) {
@@ -43,6 +44,7 @@ window.DevnexProjects = (() => {
     bindProjectControls();
     try {
       await loadProjects();
+      await window.DevnexConnections?.refresh();
       renderProjectsTable();
       renderCurrentProject(app.state.projects);
     } catch (error) {
@@ -134,7 +136,12 @@ window.DevnexProjects = (() => {
     document.getElementById("newProjectButton")?.addEventListener("click", openCreateDialog);
     document.getElementById("closeDialog")?.addEventListener("click", closeDialog);
     document.getElementById("cancelDialog")?.addEventListener("click", closeDialog);
-    document.getElementById("projectForm")?.addEventListener("submit", saveProjectFromForm);
+    document.getElementById("projectForm")?.addEventListener("submit",async event=>{
+      event.preventDefault();const form=event.currentTarget;if(form.dataset.saving)return;
+      form.dataset.saving='true';const button=form.querySelector('[type=submit]');button.disabled=true;
+      try{await saveProjectFromForm(event);}finally{delete form.dataset.saving;button.disabled=false;}
+    });
+    document.getElementById("projectIdInput")?.addEventListener("input",event=>setText("repositoryHint",DevnexConnections.hint(event.target.value)));
     ["projectStatusInput", "warningHoursInput", "restartWarningInput"].forEach(id => document.getElementById(id)?.addEventListener("change", syncWarningFields));
     setInterval(() => {
       if (app.page === "projects" && !document.hidden) {
@@ -182,14 +189,17 @@ window.DevnexProjects = (() => {
     document.getElementById("nextPage").disabled = app.state.currentPage >= totalPages;
   };
 
-  const renderProjectRow = (project) => `
+  const renderProjectRow = (project) => {
+    const connection=window.DevnexConnections?.status(project.project_id)||{tone:'off',label:'Sin conectar',detail:'Conecta el repositorio para habilitar su control automático.'};
+    return `
     <tr>
-      <td data-label="Proyecto"><span class="row-project"><i class="fa-solid fa-code"></i>${escapeHTML(project.project_id)}</span></td>
+      <td data-label="Proyecto"><span class="row-project"><span class="connection-led ${connection.tone}" role="img" aria-label="${escapeAttr(connection.label)}" title="${escapeAttr(connection.detail)}"></span>${escapeHTML(project.project_id)}</span><small class="connection-label" title="${escapeAttr(connection.detail)}">${escapeHTML(connection.label)}</small></td>
       <td data-label="Estado"><span class="status-badge ${statusOf(project)}">${statusLabel(project)}</span>${project.deadline_at ? `<small class="deadline-label">${escapeHTML(deadlineLabel(project))}</small><small class="deadline-label" data-countdown="${escapeAttr(project.project_id)}">${statusOf(project) === "blocked" ? "Plazo vencido" : countdownLabel(project)}</small>` : ""}</td>
       <td data-label="Deuda">${DevnexUI.formatCOP(project.amount)}</td>
       <td data-label="Mensaje" class="message-cell">${escapeHTML(project.message || "Sin mensaje")}</td>
       <td data-label="Acciones">
         <div class="actions-cell">
+          <button class="icon-button" type="button" data-action="connect" data-id="${escapeAttr(project.project_id)}" aria-label="Conectar repositorio" data-tooltip="Conectar / revisar"><i class="fa-solid fa-plug"></i></button>
           <button class="icon-button" type="button" data-action="toggle" data-id="${escapeAttr(project.project_id)}" aria-label="${project.status === "active" ? "Programar aviso" : "Desbloquear y quitar aviso"}" data-tooltip="${project.status === "active" ? "Programar aviso" : "Activar sin aviso"}">
             <i class="fa-solid ${project.status === "active" ? "fa-clock" : "fa-unlock"}"></i>
           </button>
@@ -202,7 +212,7 @@ window.DevnexProjects = (() => {
         </div>
       </td>
     </tr>
-  `;
+  `;};
 
   const handleTableAction = async (event) => {
     const button = event.target.closest("button[data-action]");
@@ -210,8 +220,9 @@ window.DevnexProjects = (() => {
     const project = app.state.projects.find((item) => item.project_id === button.dataset.id);
     if (!project) return;
 
-    if (button.dataset.action === "edit") {
+    if (button.dataset.action === "edit" || button.dataset.action === "connect") {
       openEditDialog(project);
+      if(button.dataset.action==='connect')document.getElementById('projectIdInput').focus();
       return;
     }
 
@@ -239,6 +250,9 @@ window.DevnexProjects = (() => {
     document.getElementById("projectForm").reset();
     document.getElementById("projectIdInput").readOnly = false;
     document.getElementById("projectStatusInput").value = "active";
+    setText('repositoryHint','Escribe el nombre del repositorio de tu cuenta devnnex o pega su enlace principal de GitHub.');
+    setText('connectionDetail','La instalación puede tardar unos minutos. El LED verde confirma la ejecución del script cliente.');
+    document.getElementById('connectionSite').hidden=true;
     syncWarningFields();
     document.getElementById("projectDialog").showModal();
   };
@@ -247,8 +261,13 @@ window.DevnexProjects = (() => {
     app.state.editingId = project.project_id;
     document.getElementById("projectForm").reset();
     setText("dialogMode", "Editar proyecto");
-    document.getElementById("projectIdInput").value = project.project_id;
-    document.getElementById("projectIdInput").readOnly = true;
+    document.getElementById("projectIdInput").value = window.DevnexConnections?.inputFor(project.project_id)||project.project_id;
+    document.getElementById("projectIdInput").readOnly = false;
+    setText('repositoryHint',DevnexConnections.hint(document.getElementById('projectIdInput').value));
+    setText('connectionDetail',DevnexConnections.status(project.project_id).detail);
+    const site=document.getElementById('connectionSite'),connection=DevnexConnections.connectionFor(project.project_id);
+    site.hidden=true;
+    try{if(connection?.site_url&&new URL(connection.site_url).protocol==='https:'){site.href=connection.site_url;site.hidden=false;}}catch(_){}
     document.getElementById("projectStatusInput").value = project.status;
     document.getElementById("projectAmountInput").value = project.amount;
     document.getElementById("projectMessageInput").value = project.message;
@@ -284,8 +303,11 @@ window.DevnexProjects = (() => {
     event.preventDefault();
     const form = event.currentTarget;
     const data = new FormData(form);
+    let target;
+    try { await DevnexConnections.refresh(); target=await DevnexConnections.prepare(data.get('project_id'),app.state.editingId); }
+    catch(error){DevnexUI.showToast(error.message,'error');return;}
     const project = {
-      project_id: String(data.get("project_id") || "").trim(),
+      project_id: target.project_id,
       status: String(data.get("status") || "active"),
       amount: Number(data.get("amount") || 0),
       message: String(data.get("message") || "").trim()
@@ -306,7 +328,11 @@ window.DevnexProjects = (() => {
       return;
     }
 
-    if (await persistProject(project, !app.state.editingId)) closeDialog();
+    const isCreate=!app.state.projects.some(p=>p.project_id===project.project_id);
+    if (await persistProject(project,isCreate)) {
+      try { await DevnexConnections.queue(project,target); closeDialog(); DevnexUI.showToast('Proyecto guardado. Revisa el LED de conexión junto al nombre.'); }
+      catch(error){DevnexUI.showToast('El proyecto se guardó, pero falta conectar el repositorio: '+error.message,'error');}
+    }
   };
 
   const persistProject = async (project, isCreate = false) => {
@@ -333,6 +359,7 @@ window.DevnexProjects = (() => {
     try {
       DevnexUI.setLoading(true);
       await DevnexAPI.deleteProject(projectId);
+      if(localStorage.getItem('devnex.ownerKey'))await window.DevnexConnections?.remove(projectId);
       app.state.projects = app.state.projects.filter((project) => project.project_id !== projectId);
       renderProjectsTable();
       DevnexUI.showToast("Proyecto eliminado.");

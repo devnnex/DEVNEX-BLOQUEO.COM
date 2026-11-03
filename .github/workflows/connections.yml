@@ -1,0 +1,26 @@
+name: DEVNEX · Conectar proyectos
+on:
+  schedule:
+    - cron: '1-56/5 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: devnex-connections
+  cancel-in-progress: false
+jobs:
+  connect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --omit=dev --ignore-scripts
+      - name: Instalar y verificar conexiones solicitadas
+        run: node scripts/connect-repositories.cjs
+        env:
+          DEVNEX_OWNER_KEY: ${{ secrets.DEVNEX_OWNER_KEY }}
+          DEVNEX_REPO_TOKEN: ${{ secrets.DEVNEX_REPO_TOKEN }}

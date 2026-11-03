@@ -12,7 +12,34 @@ Panel estático para gestionar proyectos mediante la API existente de Google App
 
 Editar el mensaje o la posición conserva el vencimiento. Cambiar las horas o marcar **Reiniciar el plazo** crea un plazo nuevo. También se conserva **Bloquear ahora** para una suspensión inmediata. Los bloqueos antiguos mantienen su estado hasta que el administrador los cambie.
 
-## Integración en cada proyecto cliente
+## Conectar un proyecto escribiendo su nombre
+
+Con el dispositivo vinculado en Ajustes, entra en **Proyectos → Nuevo** y escribe el repositorio de tu cuenta `devnnex`. Estas dos entradas conectan el mismo proyecto:
+
+```text
+DON-PIEROS-PIZZA-BCA.COM
+https://github.com/devnnex/DON-PIEROS-PIZZA-BCA.COM
+```
+
+Elige activo, aviso o bloqueo, completa importe/mensaje y guarda. No tienes que pegar scripts ni configurar identificadores en el cliente: una solicitud cifrada autoriza al workflow **DEVNEX · Conectar proyectos** a instalarlo en GitHub. La revisión se ejecuta aproximadamente cada 5 minutos; después se espera la publicación de Pages. El token de GitHub permanece exclusivamente en un secreto de Actions, nunca en la interfaz ni en la hoja pública.
+
+El LED junto al nombre muestra:
+
+- **Ámbar:** en cola, publicando o esperando la primera apertura del cliente.
+- **Verde fluorescente:** el navegador del cliente ejecutó el script y confirmó la comunicación en los últimos 3 minutos.
+- **Verde tenue:** la conexión ya fue confirmada, pero no hay una señal reciente; puede no haber nadie usando el sistema.
+- **Rojo:** falló la instalación; abre el botón de enchufe para ver el motivo y guarda para reintentar.
+- **Gris:** todavía no se ha solicitado la conexión automática.
+
+El cliente envía una señal como máximo una vez por minuto y el panel la consulta cada 20 segundos mientras miras Proyectos. Un LED no asegura que haya usuarios trabajando: señala la ejecución del control. En el formulario puedes ver la última confirmación y **Abrir sistema cliente** para comprobarla. GitHub Pages y sus tareas programadas pueden tardar más de lo habitual.
+
+Los registros anteriores conservan su `project_id`, incluso si no incluía `.COM`; nombre y enlace no crean dos registros. Usa el enchufe junto a un registro anterior para conectarlo. La consola `DEVNEX-BLOQUEO.COM` se protege frente a una conexión como cliente, para mantener disponible el panel de desbloqueo.
+
+La instalación es compatible con páginas HTML estáticas, páginas múltiples, entradas HTML de Vite y `public/index.html`. Detecta la rama/carpeta de Pages, realiza un commit sin forzar la rama, sustituye la inclusión anterior de DEVNEX y renueva los service workers de entrada habituales. No ejecuta scripts del repositorio cliente, no modifica su lógica ni cambia sus reglas CSP. Frameworks sin una entrada HTML compatible, ramas protegidas o políticas que impidan cargar el script muestran un error concreto y requieren adaptar esa integración.
+
+Para autorizar otra instalación: `npm run setup:connections`, usando GitHub CLI autenticado como `devnnex`. Guarda la credencial de esa sesión únicamente como secreto `DEVNEX_REPO_TOKEN` en este repositorio. Si se revoca o caduca, vuelve a ejecutar la configuración. El workflow solo atiende solicitudes cifradas válidas y repositorios de `devnnex`.
+
+## Integración manual alternativa
 
 Publica este repositorio en el alojamiento HTTPS que ya uses para DEVNEX. En cada sistema cliente debe cargarse **la nueva versión** de `js/project-guard.js` en todas las páginas donde deba funcionar el aviso:
 
@@ -28,7 +55,7 @@ Publica este repositorio en el alojamiento HTTPS que ya uses para DEVNEX. En cad
 
 Conserva el `project_id` registrado en el panel. También funciona `data-project-id` en el script y las variables de identificación de la integración anterior. `apiUrl` permite usar otro despliegue de Apps Script. El número de WhatsApp predeterminado se conserva del panel anterior; es independiente de la llave de pago Nequi.
 
-El guard es autónomo, no requiere CSS ni librerías del cliente y aísla sus estilos con Shadow DOM. No se agrega al sistema de TIENDA NAPOLES ni a otros repositorios automáticamente: esos proyectos deben estar apuntando a este archivo actualizado. Una copia antigua del guard no interpreta los nuevos plazos. Invalida también la caché de su service worker, si existe. El parámetro `v=2` ayuda a renovar el script.
+El guard es autónomo, no requiere CSS ni librerías del cliente y aísla sus estilos con Shadow DOM. La conexión automática anterior hace esta instalación por ti; este fragmento queda como alternativa manual. Una copia antigua del guard no interpreta los nuevos plazos. Invalida también la caché de su service worker, si existe. La conexión automática usa `v=3` y agrega los atributos de confirmación del LED.
 
 ## Persistencia y compatibilidad
 

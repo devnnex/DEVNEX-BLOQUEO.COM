@@ -31,6 +31,12 @@ const server = http.createServer((req, res) => {
     return;
   }
   if (url.pathname === '/client.html') { res.setHeader('Content-Type', 'text/html'); res.end(clientHtml); return; }
+  if (url.pathname === '/connected-client.html') {
+    const id=url.searchParams.get('connection');
+    if(!/^[\w-]{36}$/.test(id)){res.writeHead(400);res.end();return;}
+    res.setHeader('Content-Type','text/html');
+    res.end(clientHtml.replace("project_id:'CLIENT-TEST'","project_id:'OLD-WRONG-ID'").replace('<script src="/js/project-guard.js">',`<script src="/js/project-guard.js" data-devnex-connector="v1" data-project-id="CLIENT-TEST" data-devnex-repository="devnnex/CLIENT-TEST" data-devnex-connection="${id}" data-devnex-health="__DEVNEX_HEALTH__${id}">`));return;
+  }
   const file = path.resolve(root, '.' + (url.pathname === '/' ? '/index.html' : decodeURIComponent(url.pathname)));
   if (!file.startsWith(root + path.sep) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) { res.writeHead(404); res.end(); return; }
   res.setHeader('Content-Type', mime[path.extname(file)] || 'application/octet-stream');
@@ -61,6 +67,10 @@ async function mockRemote(context) {
   try {
     const context = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block',timezoneId:'America/Bogota' });
     await mockRemote(context);
+    const ownerKey=Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString('base64url');
+    const publicConfig=JSON.parse(fs.readFileSync(path.join(root,'push-config.json'),'utf8'));
+    publicConfig.ownerKeyHash=Buffer.from(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(ownerKey))).toString('base64url');
+    await context.route('**/push-config.json',route=>route.fulfill({json:publicConfig}));
     const page = await context.newPage(); page.on('pageerror', e => errors.push(e.message));
     await page.goto(url);
     for (const [width, height] of [[320,568],[375,667],[390,844],[768,1024],[1366,768],[1920,1080],[812,375]]) {
@@ -80,6 +90,10 @@ async function mockRemote(context) {
       await page.setViewportSize({ width, height }); await noOverflow(page, `dashboard ${width}`);
     }
     await page.setViewportSize({ width: 390, height: 844 });
+    await page.locator('.side-nav [data-view-link=settings]').click();
+    await page.locator('#pairingKey').fill(ownerKey);
+    await page.locator('#pairDeviceForm button').click();
+    await page.waitForFunction(()=>!!localStorage.getItem('devnex.ownerKey'));
     await page.locator('.side-nav [data-view-link=projects]').click();
     await visible(page, '[data-action=toggle]');
     await page.locator('[data-action=toggle]').click();
@@ -94,15 +108,25 @@ async function mockRemote(context) {
     let scheduled = model.normalize(clientRecord());
     assert.equal(scheduled.status, 'warning'); assert.equal(scheduled.warning_position, 'top-left');
     const deadline = scheduled.deadline_at;
+    assert.equal(await page.locator('.connection-led.pending').count(),1);
+    const connectionRecords=records.filter(p=>p.project_id.startsWith('__DEVNEX_CONNECTION__'));
+    assert.equal(connectionRecords.length,1);
+    const queuedConnection=await require('../js/private-store.js').open(connectionRecords[0],ownerKey);
+    const connected=await context.newPage();await connected.goto(url+'/connected-client.html?connection='+queuedConnection.request_id);
+    await connected.waitForFunction(()=>!!localStorage.getItem('devnex.health.last:'+document.querySelector('[data-devnex-connector]').dataset.devnexConnection));
+    await page.evaluate(()=>DevnexConnections.refresh());
+    await visible(page,'.connection-led.online');await connected.close();
     await screenshot(page, 'projects-mobile');
     await page.reload();
     await visible(page, '[data-action=edit]');
     assert.equal(await page.evaluate(() => DevnexApp.state.projects[0].deadline_at), deadline);
     await page.locator('[data-action=edit]').click();
+    await page.locator('#projectIdInput').fill('https://github.com/devnnex/CLIENT-TEST');
     await page.locator('#projectMessageInput').fill('Un mensaje actualizado, conservando el plazo.');
     await page.locator('#projectForm button[type=submit]').click();
     await page.waitForFunction(() => !document.querySelector('#projectDialog').open);
     assert.equal(model.normalize(clientRecord()).deadline_at, deadline);
+    assert.equal(records.filter(p=>p.project_id.startsWith('__DEVNEX_CONNECTION__')).length,1);
     // A rejected save must retain the form and existing persisted deadline.
     rejectWrites = true;
     await page.locator('[data-action=edit]').click();
@@ -116,14 +140,6 @@ async function mockRemote(context) {
     await page.setViewportSize({width:1366,height:768}); await screenshot(page, 'projects-desktop');
 
     // Link an owner device and create an encrypted recurring payment through the UI.
-    const ownerKey=Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString('base64url');
-    const publicConfig=JSON.parse(fs.readFileSync(path.join(root,'push-config.json'),'utf8'));
-    publicConfig.ownerKeyHash=Buffer.from(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(ownerKey))).toString('base64url');
-    await context.route('**/push-config.json',route=>route.fulfill({json:publicConfig}));
-    await page.locator('.side-nav [data-view-link=settings]').click();
-    await page.locator('#pairingKey').fill(ownerKey);
-    await page.locator('#pairDeviceForm button').click();
-    await page.waitForFunction(()=>!!localStorage.getItem('devnex.ownerKey'));
     await page.setViewportSize({width:390,height:844});
     await page.locator('.side-nav [data-view-link=payments]').click();
     await page.locator('#newPayment').click();
@@ -221,7 +237,7 @@ async function mockRemote(context) {
       const buffer = await response.body(); const size = Number(icon.sizes.split('x')[0]);
       assert.equal(buffer.readUInt32BE(16),size); assert.equal(buffer.readUInt32BE(20),size);
     }
-    assert.ok((await pwa.evaluate(async () => (await caches.open('devnex-pwa-v3')).keys().then(v=>v.length))) >= 25);
+    assert.ok((await pwa.evaluate(async () => (await caches.open('devnex-pwa-v4')).keys().then(v=>v.length))) >= 25);
     // Permission and encrypted device registration without sending to a real push endpoint.
     await pwaContext.grantPermissions(['notifications']);
     await pwa.evaluate(({ownerKey,publicKey})=>{

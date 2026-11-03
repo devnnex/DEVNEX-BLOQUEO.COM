@@ -398,10 +398,13 @@
         <button class="icon-button" type="button" id="closeDialog" aria-label="Cerrar"><i class="fa-solid fa-xmark"></i></button>
       </div>
       <label>
-        <span>project_id</span>
+        <span>Nombre o enlace del repositorio</span>
         <i class="fa-solid fa-code-branch"></i>
-        <input id="projectIdInput" name="project_id" type="text" autocapitalize="none" spellcheck="false" placeholder="AREPAS-DOG-BURGER.COM" required>
+        <input id="projectIdInput" name="project_id" type="text" autocapitalize="none" spellcheck="false" placeholder="AREPAS-DOG-BURGER.COM o https://github.com/devnnex/…" aria-describedby="repositoryHint" required>
       </label>
+      <p class="form-help" id="repositoryHint">Al guardar se instalará la conexión automáticamente. El LED verde confirma que el sistema cliente ejecutó el script.</p>
+      <p class="form-help" id="connectionDetail"></p>
+      <a class="button ghost" id="connectionSite" href="#" target="_blank" rel="noopener" hidden>Abrir sistema cliente ↗</a>
       <div class="form-grid">
         <label>
           <span>Estado del servicio</span>
@@ -469,7 +472,9 @@
   <script src="js/auth.js"></script>
   <script src="js/charts.js"></script>
   <script src="js/projects.js"></script>
+  <script src="js/repository-model.js"></script>
   <script src="js/private-store.js"></script>
+  <script src="js/connections.js"></script>
   <script src="js/payment-model.js"></script>
   <script src="js/payments.js"></script>
   <script src="js/notifications.js"></script>

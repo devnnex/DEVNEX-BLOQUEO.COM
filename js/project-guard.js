@@ -45,7 +45,8 @@
 (() => {
   if (typeof window === "undefined" || document.body?.dataset.devnexConsole === "true" || window.__devnexGuard) return;
   const config = window.DEVNEX_BLOCKER_CONFIG || {}, script = document.currentScript;
-  const projectId = [config.project_id, config.projectId,
+  const automatic=script?.dataset.devnexConnector==='v1';
+  const projectId = [automatic?script.dataset.projectId:null,config.project_id, config.projectId,
     typeof DEVNEX_PROJECT_ID !== "undefined" ? DEVNEX_PROJECT_ID : null,
     typeof project_id !== "undefined" ? project_id : null,
     typeof PROJECT_ID !== "undefined" ? PROJECT_ID : null,
@@ -57,6 +58,27 @@
   const apiUrl = config.apiUrl || config.api_url || window.DEVNEX_BLOCKER_API_URL || "https://script.google.com/macros/s/AKfycbzUtJKIQEk8GWR7adR36cL1cLzMnmIMJxHixmGWbNcLilxIs3cYhH8wPLV3DFdf41VRtw/exec";
   const whatsapp = String(config.whatsapp || config.whatsappNumber || window.DEVNEX_BLOCKER_WHATSAPP || "573246394689").replace(/\D/g, "");
   const model = window.DevnexProjectState, cacheKey = `devnex.guard.v1:${apiUrl}:${projectId}`;
+  const healthId=automatic?script.dataset.devnexHealth:'',connectionId=automatic?script.dataset.devnexConnection:'',repository=automatic?script.dataset.devnexRepository:'';
+  let heartbeatPending=false;
+  async function heartbeat(){
+    if(!healthId||healthId!=='__DEVNEX_HEALTH__'+connectionId||heartbeatPending)return;
+    const lastKey='devnex.health.last:'+connectionId;
+    try{if(Date.now()-Number(localStorage.getItem(lastKey)||0)<60000)return;}catch(_){}
+    heartbeatPending=true;
+    const healthController=new AbortController(),healthTimeout=setTimeout(()=>healthController.abort(),20000);
+    try{
+      const url=new URL(apiUrl,location.href);url.searchParams.set('project_id',healthId);url.searchParams.set('t',String(Date.now()));
+      const previousResponse=await fetch(url,{cache:'no-store',signal:healthController.signal});
+      const previous=await previousResponse.json();if(!previousResponse.ok||previous.success===false)throw new Error('Health read failed');
+      const found=previous.project||previous.data||previous;
+      const exists=Array.isArray(previous.projects)?previous.projects.some(p=>p.project_id===healthId):found.project_id===healthId;
+      const record={project_id:healthId,status:'active',amount:0,message:JSON.stringify({connection_id:connectionId,project_id:projectId,repository,seen_at:new Date().toISOString(),origin:location.origin,guard_version:3})};
+      const response=await fetch(apiUrl,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:exists?'update':'create',...record}),signal:healthController.signal});
+      const saved=await response.json();if(!response.ok||saved.success===false||saved.error)throw new Error('Health write failed');
+      try{localStorage.setItem(lastKey,String(Date.now()));}catch(_){}
+    }catch(_){/* A missing receipt never prevents normal operation or creates a positive LED. */}
+    finally{clearTimeout(healthTimeout);heartbeatPending=false;}
+  }
   const money = v => new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(v);
   let current = null, host, shadow, signature, pending = false, previousFocus, observer;
   const inertElements = new Map();
@@ -150,7 +172,7 @@
       const raw = Array.isArray(source) ? source.find(p => String(p.project_id || p.id).trim() === projectId) : source;
       if (!raw?.status) { store(null); return; }
       const project = model.normalize({ ...raw, project_id: raw.project_id || projectId });
-      if (project.project_id === projectId) store(project);
+      if (project.project_id === projectId) {store(project);heartbeat();}
     } catch (_) { console.warn("DEVNEX: sin conexión para sincronizar; se conserva el último vencimiento conocido."); }
     finally { clearTimeout(timeout); pending = false; }
   }
