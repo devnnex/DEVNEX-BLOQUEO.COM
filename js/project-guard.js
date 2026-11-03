@@ -59,6 +59,7 @@
   const whatsapp = String(config.whatsapp || config.whatsappNumber || window.DEVNEX_BLOCKER_WHATSAPP || "573246394689").replace(/\D/g, "");
   const model = window.DevnexProjectState, cacheKey = `devnex.guard.v1:${apiUrl}:${projectId}`;
   const healthId=automatic?script.dataset.devnexHealth:'',connectionId=automatic?script.dataset.devnexConnection:'',repository=automatic?script.dataset.devnexRepository:'';
+  const projectMissing=data=>data?.success===false&&String(data.message||data.error||'').trim().toUpperCase()==='PROJECT NOT FOUND';
   let heartbeatPending=false;
   async function heartbeat(){
     if(!healthId||healthId!=='__DEVNEX_HEALTH__'+connectionId||heartbeatPending)return;
@@ -69,7 +70,7 @@
     try{
       const url=new URL(apiUrl,location.href);url.searchParams.set('project_id',healthId);url.searchParams.set('t',String(Date.now()));
       const previousResponse=await fetch(url,{cache:'no-store',signal:healthController.signal});
-      const previous=await previousResponse.json();if(!previousResponse.ok||previous.success===false)throw new Error('Health read failed');
+      const previous=await previousResponse.json();if(!previousResponse.ok||previous.success===false&&!projectMissing(previous))throw new Error('Health read failed');
       const found=previous.project||previous.data||previous;
       const exists=Array.isArray(previous.projects)?previous.projects.some(p=>p.project_id===healthId):found.project_id===healthId;
       const record={project_id:healthId,status:'active',amount:0,message:JSON.stringify({connection_id:connectionId,project_id:projectId,repository,seen_at:new Date().toISOString(),origin:location.origin,guard_version:3})};
@@ -167,6 +168,7 @@
       const url = new URL(apiUrl, location.href);
       url.searchParams.set("project_id", projectId); url.searchParams.set("t", String(Date.now()));
       const response = await fetch(url, { cache: "no-store", signal: controller.signal }), data = await response.json();
+      if(response.ok&&projectMissing(data)){store(null);return;}
       if (!response.ok || data.error || data.success === false) throw new Error("No se pudo verificar el proyecto");
       const source = data.projects || data.rows || data.project || data.data || data;
       const raw = Array.isArray(source) ? source.find(p => String(p.project_id || p.id).trim() === projectId) : source;

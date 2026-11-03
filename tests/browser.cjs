@@ -19,7 +19,9 @@ const apiResponse = (method, payload, id) => {
     else records = [wire, ...records.filter(p => p.project_id !== wire.project_id)];
     return { success: true };
   }
-  return id ? { success: true, project: records.find(p => p.project_id === id) } : { success: true, projects: records };
+  if(!id)return { success: true, projects: records };
+  const found=records.find(p=>p.project_id===id);
+  return found?{success:true,project:found}:{success:false,message:'PROJECT NOT FOUND'};
 };
 const clientHtml = `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Cliente de prueba</title></head><body style="margin:0;background:#edf1f5;font:16px system-ui;color:#181a20"><main id="clientApp" style="padding:24px"><header style="padding:32px;background:white;border-radius:16px"><p style="color:blue;font-weight:bold">CENTRO DE MANDO</p><h1>TIENDA NAPOLES</h1><p>Cervezas, Licores, cócteles y mucho más</p><button id="customerButton" style="padding:16px;background:blue;color:white;border:0;border-radius:10px">Ver cliente</button></header><p>El sistema sigue disponible mientras acuerdas tu pago.</p><label>Buscar producto <input id="customerInput" style="font-size:16px;padding:12px;max-width:90%"></label></main><script>window.DEVNEX_BLOCKER_CONFIG={project_id:'CLIENT-TEST',apiUrl:'/test-api'};</script><script src="/js/project-guard.js"></script></body></html>`;
 const mime = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.svg': 'image/svg+xml' };
@@ -237,7 +239,7 @@ async function mockRemote(context) {
       const buffer = await response.body(); const size = Number(icon.sizes.split('x')[0]);
       assert.equal(buffer.readUInt32BE(16),size); assert.equal(buffer.readUInt32BE(20),size);
     }
-    assert.ok((await pwa.evaluate(async () => (await caches.open('devnex-pwa-v4')).keys().then(v=>v.length))) >= 25);
+    assert.ok((await pwa.evaluate(async () => (await caches.open('devnex-pwa-v5')).keys().then(v=>v.length))) >= 25);
     // Permission and encrypted device registration without sending to a real push endpoint.
     await pwaContext.grantPermissions(['notifications']);
     await pwa.evaluate(({ownerKey,publicKey})=>{
