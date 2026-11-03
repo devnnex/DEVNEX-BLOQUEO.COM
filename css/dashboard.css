@@ -233,9 +233,14 @@
 
 .premium-table {
   width: 100%;
-  min-width: 820px;
+  min-width: 0;
+  table-layout: fixed;
   border-collapse: collapse;
 }
+.premium-table th:first-child { width: 24%; }
+.premium-table th:nth-child(2),.premium-table th:nth-child(3) { width: 15%; }
+.premium-table th:last-child { width: 216px; }
+.premium-table td { overflow-wrap: anywhere; }
 
 .premium-table th,
 .premium-table td {
@@ -272,9 +277,12 @@
 
 .row-project {
   display: inline-flex;
+  min-width: 0;
+  max-width: 100%;
   align-items: center;
   gap: 10px;
   font-weight: 900;
+  overflow-wrap: anywhere;
 }
 
 .row-project i {
