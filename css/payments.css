@@ -3,3 +3,13 @@
 @media(max-width:680px){.payment-card-heading{flex-wrap:wrap}.payment-card-heading>div{flex:1 1 180px}.payment-card-heading h3{margin-bottom:8px}.payment-card-heading>.status-badge{flex:0 0 auto;margin-bottom:12px}}
 .payment-card-heading>div{min-width:0}.payment-card-heading .eyebrow{overflow-wrap:anywhere}.payment-amount{display:inline-block;max-width:100%;overflow-wrap:anywhere}
 @media(max-width:1180px){.payment-list{grid-template-columns:minmax(0,1fr)}}
+
+/* Keep full COP totals readable instead of splitting their digits across lines. */
+.payment-summary strong{white-space:nowrap;overflow-wrap:normal;font-variant-numeric:tabular-nums}
+@media(max-width:1180px){
+  .payment-summary{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .payment-summary article:last-child{grid-column:1 / -1}
+}
+@media(max-width:680px){
+  .payment-summary strong{font-size:clamp(20px,6vw,28px)}
+}

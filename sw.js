@@ -1,4 +1,4 @@
-const CACHE_NAME = "devnex-pwa-v8";
+const CACHE_NAME = "devnex-pwa-v9";
 const APP_SHELL = [
   "./",
   "./index.html",
